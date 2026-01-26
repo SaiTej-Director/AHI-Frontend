@@ -1,3 +1,4 @@
+// AHI UI V1 — Layout & Interaction Locked
 import React from "react"
 import { View, Text, StyleSheet } from "react-native"
 import LockedAction from "./LockedAction"

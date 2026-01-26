@@ -1,94 +1,76 @@
 import React, { useState } from "react"
-import {
-  View,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Platform
-} from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import { View, TextInput, Pressable, Text } from "react-native"
 
 type Props = {
   onSend: (text: string) => void
   disabled?: boolean
+  isDeleteMode?: boolean
+  onDeleteSelected?: () => void
 }
 
-export default function InputBar({ onSend, disabled }: Props) {
+export default function InputBar({
+  onSend,
+  disabled,
+  isDeleteMode,
+  onDeleteSelected,
+}: Props) {
   const [text, setText] = useState("")
 
-  function handleSend() {
-    const trimmed = text.trim()
-    if (!trimmed || disabled) return
-
-    onSend(trimmed)
+  function send() {
+    if (isDeleteMode) {
+      onDeleteSelected?.()
+      return
+    }
+    if (!text.trim()) return
+    onSend(text)
     setText("")
   }
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.container}>
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder="Type here…"
-          placeholderTextColor="#8A8A8A"
-          style={styles.input}
-          multiline
-          maxLength={1000}
-          editable={!disabled}
-          returnKeyType="send"
-          blurOnSubmit={Platform.OS !== "web"}
-          onSubmitEditing={() => {
-            if (Platform.OS !== "web") handleSend()
-          }}
-        />
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "flex-end",
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderTopWidth: 1,
+        borderColor: "#1f1f1f",
+        backgroundColor: "#121212",
+      }}
+    >
+      <TextInput
+  value={text}
+  onChangeText={setText}
+  editable={!disabled}
+  placeholder="Type here…"
+  placeholderTextColor="#777"
+  multiline
+  scrollEnabled={false}   // 🔥 THIS IS THE KEY
+  style={{
+    flex: 1,
+    minHeight: 48,
+    maxHeight: 140,
+    color: "#fff",
+    fontSize: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "#121212",
+    borderRadius: 14,
+  }}
+/>
 
-        <TouchableOpacity
-          onPress={handleSend}
-          activeOpacity={0.7}
-          style={styles.sendButton}
-        >
-          <Ionicons
-            name="send"
-            size={24}
-            color={text.trim() ? "#EAEAEA" : "#666666"}
-          />
-        </TouchableOpacity>
-      </View>
+
+      <Pressable
+        onPress={send}
+        style={{
+          marginLeft: 10,
+          paddingVertical: 10,
+          paddingHorizontal: 12,
+          justifyContent: "center",
+        }}
+      >
+        <Text style={{ color: "#4da6ff", fontSize: 16 }}>Send</Text>
+      </Pressable>
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  wrapper: {
-    paddingHorizontal: 12,
-    paddingBottom: 12
-  },
-
-  container: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    backgroundColor: "#1E1E1E",
-    borderRadius: 26,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    minHeight: 52
-  },
-
-  input: {
-    flex: 1,
-    fontSize: 18,
-    lineHeight: 24,
-    color: "#EAEAEA",
-    padding: 0,
-    margin: 0
-  },
-
-  sendButton: {
-    width: 48,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 6
-  }
-})

@@ -1,78 +1,105 @@
+// AHI UI V1 — Layout & Interaction Locked
 import React from "react"
-import { View, Text, StyleSheet } from "react-native"
-
-type Message = {
-  id: string
-  sender: "user" | "ahi"
-  text: string
-}
+import { Text, Pressable, View } from "react-native"
+import { Message } from "../../storage/history"
 
 type Props = {
   message: Message
+  isSelected: boolean
+  onPress: () => void
+  onLongPress: () => void
 }
 
-export default function MessageBubble({ message }: Props) {
-  const isAhi = message.sender === "ahi"
+export default function MessageBubble({
+  message,
+  isSelected,
+  onPress,
+  onLongPress,
+}: Props) {
+  const isUser = message.sender === "user"
 
+  // USER: text in space (no bubble)
+  if (isUser) {
+    return (
+      <Pressable onPress={onPress} onLongPress={onLongPress}>
+        <View
+          style={{
+            alignSelf: "flex-end",
+            marginVertical: 4,
+            marginRight: 6,
+            maxWidth: "80%",
+            opacity: isSelected ? 0.6 : 1,
+            position: "relative",
+          }}
+        >
+          <View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+              borderWidth: isSelected ? 1.5 : 0,
+              borderColor: isSelected ? "#3B82F6" : "transparent",
+              borderRadius: 0,
+            }}
+          />
+          <Text
+            style={{
+              color: "#eaeaea",
+              fontSize: 16,
+              lineHeight: 22,
+            }}
+          >
+            {message.text}
+          </Text>
+        </View>
+      </Pressable>
+    )
+  }
+
+  // AHI: soft presence bubble
   return (
-    <View style={styles.row}>
+    <Pressable onPress={onPress} onLongPress={onLongPress}>
       <View
-        style={[
-          styles.container,
-          isAhi ? styles.ahiBubble : styles.userContainer
-        ]}
+        style={{
+          alignSelf: "flex-start",
+          marginVertical: 4,
+          marginLeft: 6,
+          maxWidth: "80%",
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: "rgba(220,220,220,0.25)",
+          opacity: isSelected ? 0.6 : 1,
+          position: "relative",
+        }}
       >
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            borderWidth: isSelected ? 1.5 : 0,
+            borderColor: isSelected ? "#3B82F6" : "transparent",
+            borderRadius: 8,
+          }}
+        />
         <Text
-          style={[
-            styles.text,
-            isAhi ? styles.ahiText : styles.userText
-          ]}
+          style={{
+            color: "#dcdcdc",
+            fontSize: 15.5,
+            lineHeight: 22,
+          }}
         >
           {message.text}
         </Text>
       </View>
-    </View>
+    </Pressable>
   )
 }
-
-const styles = StyleSheet.create({
-  row: {
-    width: "100%",
-    alignItems: "flex-end",
-    marginVertical: 12
-  },
-
-  container: {
-    maxWidth: "82%",
-  },
-
-  /* AHI bubble */
-  ahiBubble: {
-    backgroundColor: "#1E1E1E",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18
-  },
-
-  /* User message (no bubble) */
-  userContainer: {
-    paddingHorizontal: 4,
-    paddingVertical: 2
-  },
-
-  text: {
-    color: "#EAEAEA"
-  },
-
-  ahiText: {
-    fontSize: 19,
-    lineHeight: 28,
-    fontWeight: "400"
-  },
-
-  userText: {
-    fontSize: 18,
-    lineHeight: 26,
-    fontWeight: "400"
-  }
-})

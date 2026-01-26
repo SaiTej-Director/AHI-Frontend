@@ -1,44 +1,40 @@
 import React from "react"
-import { View, FlatList, StyleSheet } from "react-native"
+import { FlatList, View } from "react-native"
 import MessageBubble from "./MessageBubble"
 import { Message } from "../../storage/history"
 
 type Props = {
   messages: Message[]
-  selectedIds: string[]
-  onToggleSelect: (id: string) => void
+  selectedMessageIds: Set<string>
+  onPressMessage: (id: string) => void
+  onLongPressMessage: (id: string) => void
 }
 
 export default function MessageList({
   messages,
-  selectedIds,
-  onToggleSelect,
+  selectedMessageIds,
+  onPressMessage,
+  onLongPressMessage,
 }: Props) {
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: "#121212" }}>
       <FlatList
         data={messages}
         keyExtractor={item => item.id}
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: 24,
+        }}
+        keyboardDismissMode="interactive"
         renderItem={({ item }) => (
           <MessageBubble
             message={item}
-            isSelected={selectedIds.includes(item.id)}
-            onToggleSelect={() => onToggleSelect(item.id)}
+            isSelected={selectedMessageIds.has(item.id)}
+            onPress={() => onPressMessage(item.id)}
+            onLongPress={() => onLongPressMessage(item.id)}
           />
         )}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
       />
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,            // 🔒 THIS IS CRITICAL
-  },
-  content: {
-    padding: 12,
-    paddingBottom: 8,
-  },
-})

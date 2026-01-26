@@ -1,73 +1,146 @@
 import React from "react"
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet
-} from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import { View, Text, Pressable, StyleSheet } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 type Props = {
   title: string
   onLeftPress: () => void
   onRightPress: () => void
+  onTitlePress: () => void
+  rightIcon?: string
+  rightLabel?: string
+  rightColor?: string
+  rightDisabled?: boolean
 }
 
 export default function ChatHeader({
   title,
   onLeftPress,
-  onRightPress
+  onRightPress,
+  onTitlePress,
+  rightIcon,
+  rightLabel,
+  rightColor,
+  rightDisabled,
 }: Props) {
+  const insets = useSafeAreaInsets()
+  const rightText = rightLabel ?? rightIcon ?? "☰"
+  const isRightLabel = Boolean(rightLabel)
+
   return (
-    <View style={styles.container}>
-      {/* Left icon */}
-      <TouchableOpacity
-        onPress={onLeftPress}
-        style={styles.iconButton}
-        activeOpacity={0.6}
-      >
-        <Ionicons name="menu" size={22} color="#EAEAEA" />
-      </TouchableOpacity>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        {/* LEFT ICON */}
+        <Pressable
+          onPress={onLeftPress}
+          hitSlop={14}
+          style={[styles.iconButton, { left: 12 }]}
+        >
+          <Text style={styles.icon}>☰</Text>
+        </Pressable>
 
-      {/* Title */}
-      <Text style={styles.title} numberOfLines={1}>
-        {title}
-      </Text>
+        {/* TITLE (ONLY THIS IS EDITABLE) */}
+        <Pressable
+          onPress={onTitlePress}
+          hitSlop={6}
+          style={styles.titleWrapper}
+        >
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={styles.title}
+          >
+            {title}
+          </Text>
+        </Pressable>
 
-      {/* Right icon */}
-      <TouchableOpacity
-        onPress={onRightPress}
-        style={styles.iconButton}
-        activeOpacity={0.6}
-      >
-        <Ionicons name="time-outline" size={22} color="#EAEAEA" />
-      </TouchableOpacity>
+        {/* RIGHT ICON */}
+        <Pressable
+          onPress={onRightPress}
+          disabled={rightDisabled}
+          hitSlop={14}
+          style={[
+            isRightLabel ? styles.actionButton : styles.iconButton,
+            { right: 12 },
+          ]}
+        >
+          <Text
+            style={[
+              isRightLabel ? styles.actionText : styles.icon,
+              rightColor ? { color: rightColor } : null,
+              rightDisabled && styles.iconDisabled,
+            ]}
+          >
+            {rightText}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* DIVIDER */}
+      <View style={styles.divider} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    height: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-    backgroundColor: "#121212"
+    backgroundColor: "#121212",
   },
 
-  title: {
-    fontSize: 21,
-    fontWeight: "600",
-    color: "#EAEAEA",
-    maxWidth: "70%",
-    textAlign: "center"
+  header: {
+    height: 52,
+    justifyContent: "center",
   },
 
   iconButton: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
     width: 44,
-    height: 44,
     alignItems: "center",
-    justifyContent: "center"
-  }
+    justifyContent: "center",
+  },
+
+  actionButton: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  icon: {
+    color: "#ffffff",
+    fontSize: 22,
+  },
+
+  actionText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 20,
+    includeFontPadding: false,
+  },
+
+  iconDisabled: {
+    color: "#666666",
+  },
+
+  titleWrapper: {
+    alignSelf: "center",
+    maxWidth: "70%",
+  },
+
+  title: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: "#1f1f1f",
+  },
 })

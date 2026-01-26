@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import RootNavigator from "./src/navigation/RootNavigator";
 import * as Updates from "expo-updates";
+import { AuthProvider } from "./src/auth/AuthContext";
 
 async function safeOTA() {
   try {
@@ -20,5 +21,9 @@ export default function App() {
     safeOTA(); // runs once when app launches
   }, []);
 
-  return <RootNavigator />;
+  return (
+    <AuthProvider>
+      <RootNavigator />
+    </AuthProvider>
+  );
 }
