@@ -6,6 +6,8 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onPressAuth?: () => void;
+  onPressUnderstanding?: () => void;
+  onPressConnect?: () => void;
   isAuthenticated?: boolean;
   accountName?: string | null;
 };
@@ -14,6 +16,8 @@ export default function LeftDrawer({
   visible,
   onClose,
   onPressAuth,
+  onPressUnderstanding,
+  onPressConnect,
   isAuthenticated,
   accountName,
 }: Props) {
@@ -31,6 +35,14 @@ export default function LeftDrawer({
             // Close drawer first so popup overlays correctly
             onClose()
             onPressAuth?.()
+          }}
+          onPressUnderstanding={() => {
+            onClose()
+            onPressUnderstanding?.()
+          }}
+          onPressConnect={() => {
+            onClose()
+            onPressConnect?.()
           }}
           isAuthenticated={isAuthenticated}
           accountName={accountName}

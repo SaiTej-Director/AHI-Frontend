@@ -8,7 +8,6 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Platform,
   Image,
 } from "react-native"
 import * as WebBrowser from "expo-web-browser"
@@ -252,11 +251,6 @@ export default function AuthModal({ visible, onClose, contextMessage }: Props) {
           )}
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Text style={styles.note}>
-            {Platform.OS === "android"
-              ? "Tip: On Android emulator, backend must be reachable at 10.0.2.2"
-              : ""}
-          </Text>
         </ScrollView>
       </View>
     </View>
@@ -308,7 +302,7 @@ function GoogleLoginButton({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: "rgba(0,0,0,0.65)",
   },
   card: {
     position: "absolute",
@@ -357,8 +351,6 @@ const styles = StyleSheet.create({
   linkBtn: { paddingVertical: 10, alignItems: "center" },
   linkText: { color: "#9fd0ff", fontSize: 13 },
   error: { marginTop: 10, color: "#ff8a8a", fontSize: 12 },
-  note: { marginTop: 8, color: "#6f6f6f", fontSize: 11 },
-
   photoRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -16,7 +16,8 @@ export default function MessageBubble({
   onPress,
   onLongPress,
 }: Props) {
-  const isUser = message.sender === "user"
+  const isUser = message.role === "user"
+  const text = message.content ?? ""
 
   // USER: text in space (no bubble)
   if (isUser) {
@@ -30,21 +31,14 @@ export default function MessageBubble({
             maxWidth: "80%",
             opacity: isSelected ? 0.6 : 1,
             position: "relative",
+            paddingHorizontal: isSelected ? 10 : 0,
+            paddingVertical: isSelected ? 6 : 0,
+            borderWidth: isSelected ? 1.5 : 0,
+            borderColor: isSelected ? "rgba(59,130,246,0.5)" : "transparent",
+            borderRadius: 8,
+            backgroundColor: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
           }}
         >
-          <View
-            pointerEvents="none"
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              borderWidth: isSelected ? 1.5 : 0,
-              borderColor: isSelected ? "#3B82F6" : "transparent",
-              borderRadius: 0,
-            }}
-          />
           <Text
             style={{
               color: "#eaeaea",
@@ -52,7 +46,7 @@ export default function MessageBubble({
               lineHeight: 22,
             }}
           >
-            {message.text}
+            {text}
           </Text>
         </View>
       </Pressable>
@@ -72,24 +66,12 @@ export default function MessageBubble({
           paddingVertical: 8,
           borderRadius: 8,
           borderWidth: 1,
-          borderColor: "rgba(220,220,220,0.25)",
+          borderColor: isSelected ? "rgba(59,130,246,0.5)" : "rgba(220,220,220,0.25)",
+          backgroundColor: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
           opacity: isSelected ? 0.6 : 1,
           position: "relative",
         }}
       >
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            left: 0,
-            borderWidth: isSelected ? 1.5 : 0,
-            borderColor: isSelected ? "#3B82F6" : "transparent",
-            borderRadius: 8,
-          }}
-        />
         <Text
           style={{
             color: "#dcdcdc",
@@ -97,7 +79,7 @@ export default function MessageBubble({
             lineHeight: 22,
           }}
         >
-          {message.text}
+          {text}
         </Text>
       </View>
     </Pressable>

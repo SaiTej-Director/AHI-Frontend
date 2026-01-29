@@ -1,6 +1,5 @@
 import React from "react"
 import { View, Text, Pressable, StyleSheet } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 type Props = {
   title: string
@@ -23,12 +22,11 @@ export default function ChatHeader({
   rightColor,
   rightDisabled,
 }: Props) {
-  const insets = useSafeAreaInsets()
   const rightText = rightLabel ?? rightIcon ?? "☰"
   const isRightLabel = Boolean(rightLabel)
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <View style={styles.header}>
         {/* LEFT ICON */}
         <Pressable
@@ -106,6 +104,9 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     paddingHorizontal: 10,
+    // Root cause: action text used icon layout without width parity,
+    // leading to slight misalignment vs other header actions.
+    minWidth: 44,
     alignItems: "center",
     justifyContent: "center",
   },

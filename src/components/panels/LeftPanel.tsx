@@ -1,47 +1,32 @@
-// Left panel was still using legacy UI — rebuilding now.
-// AHI UI V1 — Layout & Interaction Locked
-import React, { useState } from "react"
+import React from "react"
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  LayoutAnimation,
-  Platform,
-  UIManager,
   Pressable,
   Image,
 } from "react-native"
-import * as ImagePicker from "expo-image-picker"
 import { useAuth } from "../../auth/AuthContext"
-
-/* Enable layout animation on Android */
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
-}
 
 type Props = {
   onPressAuth?: () => void
+  onPressUnderstanding?: () => void
+  onPressConnect?: () => void
   isAuthenticated?: boolean
   accountName?: string | null
 }
 
 export default function LeftPanel({
   onPressAuth,
+  onPressUnderstanding,
+  onPressConnect,
   isAuthenticated,
   accountName,
 }: Props) {
-  const [open, setOpen] = useState(false)
-  const { profilePhoto, setProfilePhoto } = useAuth()
-
-  function toggleConnect() {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-    setOpen(prev => !prev)
-  }
+  const { profilePhoto } = useAuth()
+  const understandingStage = "Early Understanding"
 
   return (
     <View style={styles.container}>
@@ -49,120 +34,52 @@ export default function LeftPanel({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* AUTH */}
+        {/* PROFILE */}
         {isAuthenticated ? (
-          <>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={styles.accountRow}
-              onPress={onPressAuth}
-            >
-              <Pressable
-                onPress={async () => {
-                  const perm =
-                    await ImagePicker.requestMediaLibraryPermissionsAsync()
-                  if (!perm.granted) return
-
-                  const result = await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    quality: 0.9,
-                    allowsEditing: false,
-                  })
-
-                  if ((result as any).canceled) return
-                  const uri = (result as any)?.assets?.[0]?.uri
-                  if (uri) {
-                    await setProfilePhoto(uri)
-                  }
-                }}
-                hitSlop={8}
-              >
-                {profilePhoto ? (
-                  <Image
-                    source={{ uri: profilePhoto }}
-                    style={styles.avatarImage}
-                  />
-                ) : (
-                  <View style={styles.avatarPlaceholder} />
-                )}
-              </Pressable>
-
-              <Text numberOfLines={1} style={styles.identityName}>
-                {accountName || "You"}
-              </Text>
-            </TouchableOpacity>
-          </>
+          <View style={[styles.stackItem, styles.accountRow]}>
+            {profilePhoto ? (
+              <Image source={{ uri: profilePhoto }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder} />
+            )}
+            <Text numberOfLines={1} style={styles.identityName}>
+              {accountName || "You"}
+            </Text>
+          </View>
         ) : (
           <TouchableOpacity
             activeOpacity={0.85}
-            style={styles.authButton}
+            style={[styles.stackItem, styles.authButton]}
             onPress={onPressAuth}
           >
-            <Text style={styles.authText}>SIGN UP / LOGIN</Text>
+            <Text style={styles.authText}>Login / Sign up</Text>
           </TouchableOpacity>
         )}
 
         {/* UNDERSTANDING LEVEL */}
-        <View style={styles.understandingWrapper}>
+        <Pressable onPress={onPressUnderstanding} style={styles.stackItem}>
           <View style={styles.understandingLabelRow}>
             <View style={styles.progressDot} />
-            <Text style={styles.understandingTitle}>Understanding level</Text>
+            <Text style={styles.understandingTitle}>Understanding Level</Text>
           </View>
-          <Text style={styles.understandingValue}>Early stage</Text>
-        </View>
-
-        {/* PUSH CONNECT TOWARDS CENTER */}
-        <View style={{ height: 160 }} />
+          <Text style={styles.understandingValue}>{understandingStage}</Text>
+        </Pressable>
 
         {/* CONNECT WITH */}
         <TouchableOpacity
           activeOpacity={0.85}
-          onPress={toggleConnect}
-          style={styles.connectButton}
+          onPress={onPressConnect}
+          style={[styles.stackItem, styles.stackItemLast]}
         >
-          <Text style={styles.connectText}>🔒 Connect with</Text>
-        </TouchableOpacity>
-
-        {/* LOCKED DROPDOWNS */}
-        {open && (
-          <View style={styles.dropdownWrapper}>
-            <View style={styles.lockedItem}>
-              <Text style={styles.lockedText}>CHAT</Text>
+          <View style={styles.connectContent}>
+            <View style={styles.connectIcon}>
+              <View style={styles.connectHeadSecondary} />
+              <View style={styles.connectHeadPrimary} />
             </View>
-
-            <View style={styles.lockedItem}>
-              <Text style={styles.lockedText}>MEET</Text>
-            </View>
+            <Text style={styles.connectText}>Connect With</Text>
           </View>
-        )}
-
-        {open && (
-          <Text style={styles.primaryDescription}>
-            Connect with like-minded people —
-            same or opposite gender —
-            once AHI understands you well enough.
-          </Text>
-        )}
-
-        {open && <View style={{ height: 72 }} />}
+        </TouchableOpacity>
       </ScrollView>
-
-      {open && (
-        <View style={styles.secondaryBlock}>
-          <Text style={styles.secondaryText}>This stays private.</Text>
-          <Text style={styles.secondaryText}>No public profiles.</Text>
-          <Text style={styles.secondaryText}>No forced matches.</Text>
-          <Text style={styles.secondaryText}>
-            You decide when to engage.
-          </Text>
-        </View>
-      )}
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          AHI adapts slowly, on purpose.
-        </Text>
-      </View>
     </View>
   )
 }
@@ -178,34 +95,39 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 56,
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 28,
+    flexGrow: 1,
+  },
+
+  stackItem: {
+    alignSelf: "stretch",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "#1A1A1A",
+    minHeight: 64,
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+
+  stackItemLast: {
+    marginBottom: 0,
   },
 
   authButton: {
-    alignSelf: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 22,
-    backgroundColor: "#1E1E1E",
-    marginBottom: 28,
+    alignItems: "flex-start",
   },
 
   authText: {
     fontSize: 14,
     color: "#EAEAEA",
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
   },
 
   accountRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    alignSelf: "stretch",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: "#1E1E1E",
-    marginBottom: 28,
   },
 
   avatarPlaceholder: {
@@ -232,20 +154,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  understandingWrapper: {
-    marginBottom: 8,
-  },
-
   understandingLabelRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 8,
-    marginBottom: 8,
-  },
-
-  understandingTitle: {
-    fontSize: 13,
-    color: "#9A9A9A",
+    marginBottom: 6,
   },
 
   progressDot: {
@@ -254,75 +167,56 @@ const styles = StyleSheet.create({
     borderRadius: 4.5,
     backgroundColor: "#2E7D32",
     opacity: 0.7,
+    marginTop: 4,
+  },
+
+  understandingTitle: {
+    fontSize: 13,
+    color: "#9A9A9A",
   },
 
   understandingValue: {
     fontSize: 13,
     color: "#D0D0D0",
+    paddingLeft: 17,
     lineHeight: 18,
-    flexWrap: "wrap",
   },
 
-  connectButton: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    borderRadius: 24,
-    backgroundColor: "#1E1E1E",
+  connectContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  connectIcon: {
+    width: 22,
+    height: 14,
+  },
+
+  connectHeadPrimary: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#A9A9A9",
+  },
+
+  connectHeadSecondary: {
+    position: "absolute",
+    left: 0,
+    top: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: "#7F7F7F",
   },
 
   connectText: {
     fontSize: 15,
     color: "#EAEAEA",
-  },
-
-  dropdownWrapper: {
-    marginTop: 8,
-    marginLeft: 6,
-  },
-
-  lockedItem: {
-    width: "70%",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: "#181818",
-    marginBottom: 8,
-    opacity: 0.35,
-  },
-
-  lockedText: {
-    fontSize: 13,
-    color: "#AAAAAA",
-    letterSpacing: 1,
-  },
-
-  primaryDescription: {
-    marginTop: 16,
-    fontSize: 14,
-    color: "#BEBEBE",
-    lineHeight: 20,
-    maxWidth: 360,
-  },
-
-  secondaryBlock: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
-
-  secondaryText: {
-    fontSize: 12,
-    color: "#7F7F7F",
-    lineHeight: 18,
-  },
-
-  footer: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-
-  footerText: {
-    fontSize: 12,
-    color: "#6F6F6F",
   },
 })
