@@ -26,7 +26,8 @@ function genId() {
 
 // NOTE: Android emulator cannot reach host machine via localhost.
 // This is intentionally minimal (no UI changes) and only affects networking.
-const CHAT_API = "http://192.168.100.3:3004/chat";
+const CHAT_API = "http://localhost:3004/chat";
+const BACKEND_URL = CHAT_API;
 
 /* ------------------ component ------------------ */
 export default function ChatScreen() {
@@ -89,6 +90,10 @@ export default function ChatScreen() {
 
   /* ---------- TYPING ---------- */
   const [ahiTyping, setAhiTyping] = useState(false)
+  const deliveryIdRef = useRef(0)
+  const pendingTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const pendingResolversRef = useRef<((active: boolean) => void)[]>([])
+  const activeRequestIdRef = useRef(0)
   const typingMessage = {
     id: "typing-indicator",
     role: "assistant",
@@ -96,9 +101,62 @@ export default function ChatScreen() {
     __typing: true,
   }
 
+  function clearPendingTimers() {
+    pendingTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+    pendingTimeoutsRef.current = []
+  }
+
+  function cancelPendingDelivery() {
+    deliveryIdRef.current += 1
+    clearPendingTimers()
+    pendingResolversRef.current.forEach(resolve => resolve(false))
+    pendingResolversRef.current = []
+    setAhiTyping(false)
+  }
+
+  function randomBetween(min: number, max: number) {
+    return Math.floor(Math.random() * (max - min + 1)) + min
+  }
+
+  function wordCount(text: string) {
+    return text.trim().split(/\s+/).filter(Boolean).length
+  }
+
+  function typingDelayFor(text: string) {
+    const count = wordCount(text)
+    if (count <= 10) return randomBetween(400, 600)
+    if (count <= 20) return randomBetween(700, 1000)
+    return randomBetween(1200, 1600)
+  }
+
+  function pauseBetweenMessages() {
+    return randomBetween(300, 500)
+  }
+
+  function wait(ms: number, deliveryId: number) {
+    return new Promise<boolean>(resolve => {
+      pendingResolversRef.current.push(resolve)
+      const timeout = setTimeout(() => {
+        pendingResolversRef.current = pendingResolversRef.current.filter(
+          r => r !== resolve
+        )
+        resolve(deliveryId === deliveryIdRef.current)
+      }, ms)
+      pendingTimeoutsRef.current.push(timeout)
+    })
+  }
+
+  function normalizeMessageText(message: any) {
+    return (message?.content ?? message?.text ?? "").toString()
+  }
+
   /* ---------- SEND MESSAGE ---------- */
   async function handleSend(text: string) {
+    console.log("FRONTEND: sendMessage triggered");
+    cancelPendingDelivery()
+    const requestId = ++activeRequestIdRef.current
     const message = text
+    console.log("FRONTEND: outgoing message =", message);
     const userMessage = {
       id: Date.now().toString(),
       role: "user",
@@ -108,6 +166,7 @@ export default function ChatScreen() {
     setAhiTyping(true)
 
     try {
+      console.log("FRONTEND: calling backend URL =", BACKEND_URL);
       const res = await fetch(CHAT_API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,11 +181,47 @@ export default function ChatScreen() {
       }
 
       const data = JSON.parse(raw)
-      setMessages(prev => [...prev, ...data.messages])
+      if (requestId !== activeRequestIdRef.current) return
+
+      const incoming = Array.isArray(data.messages) ? data.messages : []
+      const responseMode = data.responseMode
+      const allowMultiMessage =
+        data.allowMultiMessage ??
+        ["DEEP_EXPLANATION", "EMOTIONAL_SUPPORT", "SAFETY_CONTAINMENT"].includes(
+          responseMode
+        )
+
+      if (!incoming.length) {
+        setAhiTyping(false)
+        return
+      }
+
+      if (!allowMultiMessage || incoming.length === 1) {
+        setMessages(prev => [...prev, incoming[0]])
+        setAhiTyping(false)
+        return
+      }
+
+      const deliveryId = deliveryIdRef.current
+      for (let i = 0; i < incoming.length; i += 1) {
+        if (deliveryId !== deliveryIdRef.current) return
+        const textChunk = normalizeMessageText(incoming[i])
+        setAhiTyping(true)
+        const ok = await wait(typingDelayFor(textChunk), deliveryId)
+        if (!ok) return
+        setMessages(prev => [...prev, incoming[i]])
+        setAhiTyping(false)
+        if (i < incoming.length - 1) {
+          const okPause = await wait(pauseBetweenMessages(), deliveryId)
+          if (!okPause) return
+        }
+      }
     } catch (e) {
-      console.error(e)
+      console.error("FRONTEND: chat request error", e)
     } finally {
-      setAhiTyping(false)
+      if (requestId === activeRequestIdRef.current) {
+        setAhiTyping(false)
+      }
     }
   }
 
@@ -259,7 +354,7 @@ export default function ChatScreen() {
         <View style={!hasMessages ? { paddingTop: initialInputBarOffset } : null}>
           <InputBar
             onSend={handleSend}
-            disabled={ahiTyping}
+            disabled={false}
             isDeleteMode={isDeleteMode}
             onDeleteSelected={handleDeleteSelected}
           />
