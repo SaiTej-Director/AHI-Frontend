@@ -17,6 +17,7 @@ import ConnectWithModal from "../components/modals/ConnectWithModal"
 import UnderstandingLevelsModal from "../components/modals/UnderstandingLevelsModal"
 
 import { saveConversation, Message, Conversation } from "../storage/history"
+import { CHAT_API_URL } from "../config/api"
 import { useAuth } from "../auth/AuthContext"
 
 /* ------------------ helpers ------------------ */
@@ -26,8 +27,8 @@ function genId() {
 
 // NOTE: Android emulator cannot reach host machine via localhost.
 // This is intentionally minimal (no UI changes) and only affects networking.
-const CHAT_API = "http://localhost:3004/chat";
-const BACKEND_URL = CHAT_API;
+const CHAT_API = CHAT_API_URL
+const BACKEND_URL = CHAT_API
 
 /* ------------------ component ------------------ */
 export default function ChatScreen() {
