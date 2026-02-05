@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { View, TextInput, Pressable, Text } from "react-native"
+import { View, TextInput, Pressable, Text, Platform } from "react-native"
 
 type Props = {
   onSend: (text: string) => void
@@ -26,6 +26,18 @@ export default function InputBar({
     setText("")
   }
 
+  function handleWebKeyPress(e: {
+    nativeEvent: { key?: string; shiftKey?: boolean; preventDefault?: () => void }
+    preventDefault?: () => void
+  }) {
+    if (Platform.OS !== "web") return
+    if (e.nativeEvent.key === "Enter" && !e.nativeEvent.shiftKey) {
+      e.preventDefault?.()
+      e.nativeEvent.preventDefault?.()
+      send()
+    }
+  }
+
   return (
     <View
       style={{
@@ -50,6 +62,7 @@ export default function InputBar({
             placeholderTextColor="#777"
             multiline
             scrollEnabled={false} // 🔥 THIS IS THE KEY
+            onKeyPress={handleWebKeyPress}
             style={{
               flex: 1,
               minHeight: 48,

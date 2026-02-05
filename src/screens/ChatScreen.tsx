@@ -17,7 +17,7 @@ import ConnectWithModal from "../components/modals/ConnectWithModal"
 import UnderstandingLevelsModal from "../components/modals/UnderstandingLevelsModal"
 
 import { saveConversation, Message, Conversation } from "../storage/history"
-import { CHAT_API_URL } from "../config/api"
+import { CHAT_API_URL, SESSION_OPEN_API_URL } from "../config/api"
 import { useAuth } from "../auth/AuthContext"
 
 /* ------------------ helpers ------------------ */
@@ -25,10 +25,15 @@ function genId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+const GLOBAL_SESSION_ID = genId()
+const GLOBAL_SESSION_START = Date.now()
+let sessionOpenShown = false
+
 // NOTE: Android emulator cannot reach host machine via localhost.
 // This is intentionally minimal (no UI changes) and only affects networking.
 const CHAT_API = CHAT_API_URL
 const BACKEND_URL = CHAT_API
+const SESSION_OPEN_API = SESSION_OPEN_API_URL
 
 /* ------------------ component ------------------ */
 export default function ChatScreen() {
@@ -52,8 +57,9 @@ export default function ChatScreen() {
   }
 
   /* ---------- SESSION ---------- */
-  const sessionIdRef = useRef(genId())
-  const sessionStartRef = useRef(Date.now())
+  const sessionIdRef = useRef(GLOBAL_SESSION_ID)
+  const sessionStartRef = useRef(GLOBAL_SESSION_START)
+  const sessionOpenRequestedRef = useRef(false)
 
   /* ---------- CHAT ---------- */
   const [messages, setMessages] = useState<Message[]>([])
@@ -171,7 +177,11 @@ export default function ChatScreen() {
       const res = await fetch(CHAT_API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({
+          message: text,
+          sessionId: sessionIdRef.current,
+          sessionStart: sessionStartRef.current,
+        }),
         cache: "no-store",
       })
 
@@ -286,6 +296,46 @@ export default function ChatScreen() {
       persistConversation(messages)
     }
   }, [messages])
+
+  /* ---------- SESSION OPEN ---------- */
+  useEffect(() => {
+    if (sessionOpenShown || sessionOpenRequestedRef.current) return
+    sessionOpenRequestedRef.current = true
+    const loadSessionOpen = async () => {
+      try {
+        const res = await fetch(SESSION_OPEN_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sessionIdRef.current,
+            sessionStart: sessionStartRef.current,
+          }),
+          cache: "no-store",
+        })
+        const raw = await res.text()
+        if (!raw) {
+          sessionOpenShown = true
+          return
+        }
+        const data = JSON.parse(raw)
+        const text = (data?.message ?? "").toString().trim()
+        if (text) {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: `session-open-${Date.now()}`,
+              role: "assistant",
+              content: text,
+            },
+          ])
+        }
+        sessionOpenShown = true
+      } catch (e) {
+        console.error("FRONTEND: session-open error", e)
+      }
+    }
+    loadSessionOpen()
+  }, [])
 
   useEffect(() => {
     return () => {

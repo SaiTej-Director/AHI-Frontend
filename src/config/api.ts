@@ -9,4 +9,5 @@ const BACKEND_HOST = Platform.OS === "web" ? "localhost" : MOBILE_BACKEND_IP
 
 export const API_BASE_URL = `http://${BACKEND_HOST}:3001`
 export const CHAT_API_URL = `http://${BACKEND_HOST}:3004/chat`
+export const SESSION_OPEN_API_URL = `http://${BACKEND_HOST}:3004/session-open`
 
