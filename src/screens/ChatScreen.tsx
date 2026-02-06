@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 import { View, KeyboardAvoidingView, Platform, Text } from "react-native"
 import {
   SafeAreaView,
@@ -25,8 +26,6 @@ function genId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-const GLOBAL_SESSION_ID = genId()
-const GLOBAL_SESSION_START = Date.now()
 let sessionOpenShown = false
 
 // NOTE: Android emulator cannot reach host machine via localhost.
@@ -34,6 +33,8 @@ let sessionOpenShown = false
 const CHAT_API = CHAT_API_URL
 const BACKEND_URL = CHAT_API
 const SESSION_OPEN_API = SESSION_OPEN_API_URL
+
+const SESSION_META_KEY = "ahi_session_meta_v1"
 
 /* ------------------ component ------------------ */
 export default function ChatScreen() {
@@ -57,9 +58,11 @@ export default function ChatScreen() {
   }
 
   /* ---------- SESSION ---------- */
-  const sessionIdRef = useRef(GLOBAL_SESSION_ID)
-  const sessionStartRef = useRef(GLOBAL_SESSION_START)
+  const sessionIdRef = useRef("")
+  const sessionStartRef = useRef(0)
   const sessionOpenRequestedRef = useRef(false)
+  const sessionOpenPromiseRef = useRef<Promise<void> | null>(null)
+  const [sessionReady, setSessionReady] = useState(false)
 
   /* ---------- CHAT ---------- */
   const [messages, setMessages] = useState<Message[]>([])
@@ -67,6 +70,52 @@ export default function ChatScreen() {
   // Intentional UX: initial empty state rests lower, then lifts once
   // the conversation starts (do not "fix" this as a bug).
   const initialInputBarOffset = 12
+
+  /* ---------- SESSION META ---------- */
+  useEffect(() => {
+    let active = true
+    const initSessionMeta = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(SESSION_META_KEY)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (parsed?.id && parsed?.startedAt) {
+            sessionIdRef.current = parsed.id
+            sessionStartRef.current = parsed.startedAt
+            if (active) setSessionReady(true)
+            return
+          }
+        }
+        const meta = { id: genId(), startedAt: Date.now() }
+        sessionIdRef.current = meta.id
+        sessionStartRef.current = meta.startedAt
+        await AsyncStorage.setItem(SESSION_META_KEY, JSON.stringify(meta))
+      } catch (e) {
+        console.error("FRONTEND: session meta error", e)
+        const meta = { id: genId(), startedAt: Date.now() }
+        sessionIdRef.current = meta.id
+        sessionStartRef.current = meta.startedAt
+      }
+      if (active) setSessionReady(true)
+    }
+    initSessionMeta()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  async function ensureSessionMetaReady() {
+    if (sessionIdRef.current && sessionStartRef.current) return
+    const meta = { id: genId(), startedAt: Date.now() }
+    sessionIdRef.current = meta.id
+    sessionStartRef.current = meta.startedAt
+    try {
+      await AsyncStorage.setItem(SESSION_META_KEY, JSON.stringify(meta))
+    } catch (e) {
+      console.error("FRONTEND: session meta save error", e)
+    }
+    setSessionReady(true)
+  }
 
   /* ---------- DELETE MODE ---------- */
   const [isDeleteMode, setIsDeleteMode] = useState(false)
@@ -157,6 +206,55 @@ export default function ChatScreen() {
     return (message?.content ?? message?.text ?? "").toString()
   }
 
+  async function requestSessionOpenMessage() {
+    if (sessionOpenShown) return
+    if (sessionOpenPromiseRef.current) {
+      await sessionOpenPromiseRef.current
+      return
+    }
+    if (!sessionIdRef.current) {
+      await ensureSessionMetaReady()
+    }
+    const work = (async () => {
+      if (sessionOpenShown || sessionOpenRequestedRef.current) return
+      sessionOpenRequestedRef.current = true
+      try {
+        const res = await fetch(SESSION_OPEN_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sessionIdRef.current,
+            sessionStart: sessionStartRef.current,
+          }),
+          cache: "no-store",
+        })
+        const raw = await res.text()
+        if (!raw) {
+          sessionOpenShown = true
+          return
+        }
+        const data = JSON.parse(raw)
+        const text = (data?.message ?? "").toString().trim()
+        if (text) {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: `session-open-${Date.now()}`,
+              role: "assistant",
+              content: text,
+            },
+          ])
+        }
+        sessionOpenShown = true
+      } catch (e) {
+        console.error("FRONTEND: session-open error", e)
+      }
+    })()
+    sessionOpenPromiseRef.current = work
+    await work
+    sessionOpenPromiseRef.current = null
+  }
+
   /* ---------- SEND MESSAGE ---------- */
   async function handleSend(text: string) {
     console.log("FRONTEND: sendMessage triggered");
@@ -164,6 +262,7 @@ export default function ChatScreen() {
     const requestId = ++activeRequestIdRef.current
     const message = text
     console.log("FRONTEND: outgoing message =", message);
+    await requestSessionOpenMessage()
     const userMessage = {
       id: Date.now().toString(),
       role: "user",
@@ -299,43 +398,9 @@ export default function ChatScreen() {
 
   /* ---------- SESSION OPEN ---------- */
   useEffect(() => {
-    if (sessionOpenShown || sessionOpenRequestedRef.current) return
-    sessionOpenRequestedRef.current = true
-    const loadSessionOpen = async () => {
-      try {
-        const res = await fetch(SESSION_OPEN_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId: sessionIdRef.current,
-            sessionStart: sessionStartRef.current,
-          }),
-          cache: "no-store",
-        })
-        const raw = await res.text()
-        if (!raw) {
-          sessionOpenShown = true
-          return
-        }
-        const data = JSON.parse(raw)
-        const text = (data?.message ?? "").toString().trim()
-        if (text) {
-          setMessages(prev => [
-            ...prev,
-            {
-              id: `session-open-${Date.now()}`,
-              role: "assistant",
-              content: text,
-            },
-          ])
-        }
-        sessionOpenShown = true
-      } catch (e) {
-        console.error("FRONTEND: session-open error", e)
-      }
-    }
-    loadSessionOpen()
-  }, [])
+    if (!sessionReady) return
+    requestSessionOpenMessage()
+  }, [sessionReady])
 
   useEffect(() => {
     return () => {
