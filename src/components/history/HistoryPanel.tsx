@@ -1,5 +1,5 @@
 // AHI UI V1 — Layout & Interaction Locked
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
 
   const [historyVisible, setHistoryVisible] = useState(false)
   const [settingsVisible, setSettingsVisible] = useState(false)
+  const keepModalOnCloseRef = useRef(false)
   const [historyOpen, setHistoryOpen] = useState(true)
   const [todayOpen, setTodayOpen] = useState(false)
   const [pastOpen, setPastOpen] = useState(false)
@@ -76,9 +77,11 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
 
   useEffect(() => {
     if (!visible) {
-      setHistoryVisible(false)
-      setSettingsVisible(false)
-      setSelectedSession(null)
+      if (!keepModalOnCloseRef.current) {
+        setHistoryVisible(false)
+        setSettingsVisible(false)
+        setSelectedSession(null)
+      }
     }
   }, [visible])
 
@@ -89,6 +92,12 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
     }
     refreshSessions()
   }, [historyVisible])
+
+  useEffect(() => {
+    if (!historyVisible && !settingsVisible) {
+      keepModalOnCloseRef.current = false
+    }
+  }, [historyVisible, settingsVisible])
 
   function confirmDelete(sessionId: string) {
     Alert.alert(
@@ -146,30 +155,43 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
     return `${hour12}:${minutes} ${suffix}`
   }
 
-  if (!visible) return null
-
   return (
-    <View style={StyleSheet.absoluteFill}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
+    <>
+      {visible && (
+        <>
+          {/* Dimmed backdrop */}
+          <Pressable style={styles.backdrop} onPress={onClose} />
 
-      <View style={styles.panel}>
-        <View style={styles.panelContent}>
-          <Pressable
-            style={styles.panelButton}
-            onPress={() => setHistoryVisible(true)}
-          >
-            <Text style={styles.panelButtonText}>History</Text>
-          </Pressable>
+          {/* Panel */}
+          <View style={styles.panel}>
+            <View style={styles.panelContent}>
+              <Pressable
+                style={styles.panelButton}
+                onPress={() => {
+                  keepModalOnCloseRef.current = true
+                  setHistoryVisible(true)
+                  onClose()
+                }}
+              >
+                <Text style={styles.panelButtonText}>History</Text>
+              </Pressable>
 
-          <Pressable
-            style={styles.panelButton}
-            onPress={() => setSettingsVisible(true)}
-          >
-            <Text style={styles.panelButtonText}>Settings</Text>
-          </Pressable>
-        </View>
-      </View>
+              <Pressable
+                style={styles.panelButton}
+                onPress={() => {
+                  keepModalOnCloseRef.current = true
+                  setSettingsVisible(true)
+                  onClose()
+                }}
+              >
+                <Text style={styles.panelButtonText}>Settings</Text>
+              </Pressable>
+            </View>
+          </View>
+        </>
+      )}
 
+      {/* History modal */}
       {historyVisible && (
         <View style={styles.modalLayer}>
           <Pressable
@@ -320,6 +342,7 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
         </View>
       )}
 
+      {/* Settings modal */}
       {settingsVisible && (
         <View style={styles.modalLayer}>
           <Pressable
@@ -342,14 +365,19 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
           </View>
         </View>
       )}
-    </View>
+    </>
   )
 }
 
 const styles = StyleSheet.create({
   backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    zIndex: 9,
   },
 
   panel: {
@@ -362,6 +390,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 56,
     paddingBottom: 24,
+    zIndex: 10,
   },
 
   panelContent: {

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ahi-app",
-    "slug": "ahi-app",
+    "name": "VibeIn-AHI",
+    "slug": "vibein-ahi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -34,7 +34,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.sai_tej_ahi.ahiapp"
+      "package": "com.vibein.ahi"
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -54,6 +54,7 @@ export default function MessageBubble({
   }
 
   // AHI: soft presence bubble
+  console.log("[FRONTEND RENDER]", message.content);
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress}>
       <View
