@@ -66,8 +66,10 @@ export default function ConnectWithModal({
       <View style={styles.card}>
         <View style={styles.headerRow}>
           <View style={styles.headerTitle}>
-            <ConnectIcon />
-            <Text style={styles.title}>Connect With</Text>
+            <View style={styles.headerTitleRow}>
+              <ConnectIcon />
+              <Text style={styles.title}>Connect With</Text>
+            </View>
             <Text style={styles.subTitle}>
               Connections based on mindset, not profiles.
             </Text>
@@ -80,15 +82,17 @@ export default function ConnectWithModal({
         <View style={styles.tabsRow}>
           <Pressable
             onPress={() => setActiveTab("chat")}
-            style={[
-              styles.tabButton,
-              activeTab === "chat" && styles.tabButtonActive,
+            style={({ pressed }) => [
+              styles.controlButton,
+              styles.primaryControl,
+              activeTab === "chat" && styles.controlButtonActive,
+              pressed && styles.controlPressed,
             ]}
           >
             <Text
               style={[
-                styles.tabText,
-                activeTab === "chat" && styles.tabTextActive,
+                styles.controlText,
+                activeTab === "chat" && styles.controlTextActive,
               ]}
             >
               CHAT
@@ -96,19 +100,33 @@ export default function ConnectWithModal({
           </Pressable>
           <Pressable
             onPress={() => setActiveTab("meet")}
-            style={[
-              styles.tabButton,
-              activeTab === "meet" && styles.tabButtonActive,
+            style={({ pressed }) => [
+              styles.controlButton,
+              styles.primaryControl,
+              activeTab === "meet" && styles.controlButtonActive,
+              pressed && styles.controlPressed,
             ]}
           >
             <Text
               style={[
-                styles.tabText,
-                activeTab === "meet" && styles.tabTextActive,
+                styles.controlText,
+                activeTab === "meet" && styles.controlTextActive,
               ]}
             >
               MEET
             </Text>
+          </Pressable>
+          <Pressable
+            onPress={tabData.onToggleInfo}
+            accessibilityRole="button"
+            accessibilityLabel="More info"
+            style={({ pressed }) => [
+              styles.controlButton,
+              styles.infoControl,
+              pressed && styles.controlPressed,
+            ]}
+          >
+            <Text style={styles.infoControlText}>i</Text>
           </Pressable>
         </View>
 
@@ -117,18 +135,6 @@ export default function ConnectWithModal({
           contentContainerStyle={styles.content}
         >
           <Text style={styles.sectionTitle}>{tabData.title}</Text>
-
-          <View style={styles.actionRow}>
-            <Pressable
-              disabled
-              style={[styles.actionButton, styles.actionButtonDisabled]}
-            >
-              <Text style={styles.actionText}>{tabData.actionLabel}</Text>
-            </Pressable>
-            <Pressable onPress={tabData.onToggleInfo}>
-              <Text style={styles.infoLink}>More info</Text>
-            </Pressable>
-          </View>
 
           {tabData.infoVisible ? (
             <Text style={styles.infoText}>{tabData.infoText}</Text>
@@ -187,15 +193,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 28,
   },
   headerTitle: {
     flex: 1,
   },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   connectIcon: {
-    width: 22,
-    height: 14,
-    marginBottom: 6,
+    width: 20,
+    height: 12,
+    flexShrink: 0,
   },
   connectHeadPrimary: {
     position: "absolute",
@@ -221,8 +232,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "600",
+    flexShrink: 1,
   },
-  subTitle: { color: "#cfcfcf", fontSize: 13 },
+  subTitle: {
+    color: "rgba(232, 232, 232, 0.65)",
+    fontSize: 14,
+    fontWeight: "400",
+    lineHeight: 20,
+    marginTop: 10,
+    marginBottom: 24,
+  },
   closeButton: {
     width: 28,
     height: 28,
@@ -234,26 +253,57 @@ const styles = StyleSheet.create({
   closeText: { color: "#e5e5e5", fontSize: 18, lineHeight: 18 },
   tabsRow: {
     flexDirection: "row",
-    gap: 10,
+    alignItems: "center",
+    gap: 14,
     marginBottom: 12,
   },
-  tabButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+  controlButton: {
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#1E1E1E",
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    shadowColor: "#000",
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
-  tabButtonActive: {
+  primaryControl: {
+    flex: 1,
+    minWidth: 84,
+    paddingHorizontal: 16,
+  },
+  infoControl: {
+    width: 40,
+    borderRadius: 20,
+    backgroundColor: "#242424",
+    borderColor: "#343434",
+  },
+  controlButtonActive: {
     backgroundColor: "#2A2A2A",
+    borderColor: "#3A3A3A",
   },
-  tabText: {
+  controlPressed: {
+    transform: [{ scale: 0.96 }],
+  },
+  controlText: {
     color: "#9a9a9a",
     fontSize: 12,
     letterSpacing: 0.8,
     fontWeight: "600",
   },
-  tabTextActive: {
+  controlTextActive: {
     color: "#EAEAEA",
+  },
+  infoControlText: {
+    color: "#CFCFCF",
+    fontSize: 18,
+    lineHeight: 18,
+    fontWeight: "500",
+    marginTop: -1,
   },
   content: {
     paddingBottom: 16,
@@ -263,31 +313,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 12,
-  },
-  actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  actionButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: "#2A2A2A",
-  },
-  actionButtonDisabled: {
-    opacity: 0.5,
-  },
-  actionText: {
-    color: "#D5D5D5",
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: 0.6,
-  },
-  infoLink: {
-    color: "#9fd0ff",
-    fontSize: 13,
   },
   infoText: {
     color: "#BEBEBE",

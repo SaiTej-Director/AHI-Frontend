@@ -1,12 +1,23 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { saveDisplayName } from "../storage/userProfile"
+import {
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithCredential,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+} from "firebase/auth"
+import { auth } from "../firebase/config"
 
 type AuthUser = {
   id: string
   email: string
   googleId?: string | null
   displayName?: string | null
+  photoURL?: string | null
 }
 
 type AuthState = {
@@ -25,9 +36,21 @@ type AuthState = {
 
   setProfilePhoto: (uri: string) => Promise<void>
   removeProfilePhoto: () => Promise<void>
+  refreshAuthUserProfile: (
+    displayName: string | null,
+    photoURL: string | null
+  ) => Promise<void>
 
   // Back-compat
   isLoggedIn: boolean
+  authReady: boolean
+  loginWithEmail: (email: string, password: string) => Promise<void>
+  registerWithEmail: (
+    name: string,
+    email: string,
+    password: string
+  ) => Promise<void>
+  signInWithGoogleIdToken: (idToken: string) => Promise<void>
   setAuth: (token: string, user: AuthUser) => Promise<void>
   logout: () => Promise<void>
 }
@@ -41,6 +64,18 @@ const PROFILE_PHOTO_KEY = "ahi_profile_photo_v1"
 const UI_SCHEMA_KEY = "ahi_ui_schema_version_v1"
 const UI_SCHEMA_VERSION = "2026-01-24-night"
 
+function toAuthUser(firebaseUser: any): AuthUser {
+  return {
+    id: firebaseUser.uid,
+    email: firebaseUser.email || "",
+    googleId:
+      firebaseUser.providerData?.find((provider: any) => provider?.providerId === "google.com")
+        ?.uid || null,
+    displayName: firebaseUser.displayName || null,
+    photoURL: firebaseUser.photoURL || null,
+  }
+}
+
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -49,13 +84,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [headerName, setHeaderNameState] = useState("You")
   const [accountName, setAccountNameState] = useState("You")
   const [accountNameCustom, setAccountNameCustom] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
 
-  const isLoggedIn = Boolean(token && user)
+  const isLoggedIn = Boolean(user)
   const isAuthenticated = isLoggedIn
   const userId = user?.id ?? null
   const [profilePhoto, setProfilePhotoState] = useState<string | null>(null)
 
   useEffect(() => {
+    let unsubscribe: (() => void) | null = null
     ;(async () => {
       const storedSchema = await AsyncStorage.getItem(UI_SCHEMA_KEY)
       if (storedSchema && storedSchema !== UI_SCHEMA_VERSION) {
@@ -92,8 +129,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const savedPhoto = await AsyncStorage.getItem(PROFILE_PHOTO_KEY)
       setProfilePhotoState(savedPhoto || null)
+
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser: any) => {
+        if (!firebaseUser) {
+          setToken(null)
+          setUser(null)
+          await AsyncStorage.removeItem(AUTH_TOKEN_KEY)
+          await AsyncStorage.removeItem(AUTH_USER_KEY)
+          setAuthReady(true)
+          return
+        }
+
+        const nextToken = await firebaseUser.getIdToken()
+        const nextUser = toAuthUser(firebaseUser)
+        setToken(nextToken)
+        setUser(nextUser)
+        await AsyncStorage.setItem(AUTH_TOKEN_KEY, nextToken)
+        await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser))
+        await saveDisplayName(nextUser.displayName?.trim() || "You")
+        await valueRef.current.refreshAuthUserProfile(
+          firebaseUser.displayName || null,
+          firebaseUser.photoURL || null
+        )
+        setAuthReady(true)
+      })
     })()
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
   }, [])
+
+  const valueRef = React.useRef<{
+    refreshAuthUserProfile: (
+      displayName: string | null,
+      photoURL: string | null
+    ) => Promise<void>
+  }>({
+    refreshAuthUserProfile: async () => {},
+  })
 
   const value = useMemo<AuthState>(
     () => ({
@@ -106,6 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headerName,
       accountName,
       accountNameCustom,
+      authReady,
       setHeaderName: async (name) => {
         const next = name.trim() || "You"
         setHeaderNameState(next)
@@ -129,6 +203,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       removeProfilePhoto: async () => {
         setProfilePhotoState(null)
         await AsyncStorage.removeItem(PROFILE_PHOTO_KEY)
+      },
+      loginWithEmail: async (email, password) => {
+        await signInWithEmailAndPassword(auth, email.trim(), password)
+      },
+      registerWithEmail: async (name, email, password) => {
+        const created = await createUserWithEmailAndPassword(
+          auth,
+          email.trim(),
+          password
+        )
+        await updateProfile(created.user, {
+          displayName: name.trim() || "You",
+        })
+        await created.user.reload()
+        await valueRef.current.refreshAuthUserProfile(
+          created.user.displayName || null,
+          created.user.photoURL || null
+        )
+      },
+      signInWithGoogleIdToken: async (idToken) => {
+        const credential = GoogleAuthProvider.credential(idToken)
+        await signInWithCredential(auth, credential)
+      },
+      refreshAuthUserProfile: async (displayName, photoURL) => {
+        const safeName = displayName?.trim() || "You"
+
+        setHeaderNameState(safeName)
+        await AsyncStorage.setItem(HEADER_NAME_KEY, safeName)
+
+        if (!accountNameCustom) {
+          setAccountNameState(safeName)
+          await AsyncStorage.setItem(ACCOUNT_NAME_KEY, safeName)
+        }
+
+        const nextPhoto = photoURL || ""
+        setProfilePhotoState(nextPhoto || null)
+        if (nextPhoto) {
+          await AsyncStorage.setItem(PROFILE_PHOTO_KEY, nextPhoto)
+        } else {
+          await AsyncStorage.removeItem(PROFILE_PHOTO_KEY)
+        }
+
+        if (user) {
+          const nextUser = {
+            ...user,
+            displayName: safeName,
+            photoURL: photoURL || null,
+          }
+          setUser(nextUser)
+          await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser))
+        }
       },
       setAuth: async (t, u) => {
         setToken(t)
@@ -163,6 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       },
       logout: async () => {
+        await signOut(auth)
         setToken(null)
         setUser(null)
         setProfilePhotoState(null)
@@ -184,8 +310,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headerName,
       accountName,
       accountNameCustom,
+      authReady,
     ]
   )
+
+  valueRef.current = {
+    refreshAuthUserProfile: value.refreshAuthUserProfile,
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

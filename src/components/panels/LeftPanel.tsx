@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Image,
 } from "react-native"
 import { useAuth } from "../../auth/AuthContext"
+import EditProfileModal from "../profile/EditProfileModal"
 
 type Props = {
   onPressAuth?: () => void
@@ -25,7 +26,9 @@ export default function LeftPanel({
   isAuthenticated,
   accountName,
 }: Props) {
-  const { profilePhoto } = useAuth()
+  const { profilePhoto, logout } = useAuth()
+  const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const understandingStage = "Early Understanding"
 
   return (
@@ -36,16 +39,39 @@ export default function LeftPanel({
       >
         {/* PROFILE */}
         {isAuthenticated ? (
-          <View style={[styles.stackItem, styles.accountRow]}>
-            {profilePhoto ? (
-              <Image source={{ uri: profilePhoto }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarPlaceholder} />
-            )}
-            <Text numberOfLines={1} style={styles.identityName}>
-              {accountName || "You"}
-            </Text>
-          </View>
+          <>
+            <Pressable
+              style={[styles.stackItem, styles.accountRow]}
+              onPress={() => setEditProfileOpen(true)}
+            >
+              {profilePhoto ? (
+                <Image source={{ uri: profilePhoto }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatarPlaceholder} />
+              )}
+              <Text numberOfLines={1} style={styles.identityName}>
+                {accountName || "You"}
+              </Text>
+            </Pressable>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              disabled={loggingOut}
+              style={[styles.stackItem, styles.authButton]}
+              onPress={async () => {
+                if (loggingOut) return
+                setLoggingOut(true)
+                try {
+                  await logout()
+                } finally {
+                  setLoggingOut(false)
+                }
+              }}
+            >
+              <Text style={styles.authText}>
+                {loggingOut ? "Logging out..." : "Logout"}
+              </Text>
+            </TouchableOpacity>
+          </>
         ) : (
           <TouchableOpacity
             activeOpacity={0.85}
@@ -57,12 +83,19 @@ export default function LeftPanel({
         )}
 
         {/* UNDERSTANDING LEVEL */}
-        <Pressable onPress={onPressUnderstanding} style={styles.stackItem}>
+        <Pressable
+          onPress={onPressUnderstanding}
+          style={[styles.stackItem, styles.understandingCard]}
+        >
           <View style={styles.understandingLabelRow}>
             <View style={styles.progressDot} />
-            <Text style={styles.understandingTitle}>Understanding Level</Text>
+            <Text numberOfLines={1} style={styles.understandingTitle}>
+              Understanding Level
+            </Text>
           </View>
-          <Text style={styles.understandingValue}>{understandingStage}</Text>
+          <Text numberOfLines={1} style={styles.understandingValue}>
+            {understandingStage}
+          </Text>
         </Pressable>
 
         {/* CONNECT WITH */}
@@ -80,6 +113,12 @@ export default function LeftPanel({
           </View>
         </TouchableOpacity>
       </ScrollView>
+      <EditProfileModal
+        visible={editProfileOpen}
+        currentName={accountName || "You"}
+        currentPhotoUrl={profilePhoto}
+        onClose={() => setEditProfileOpen(false)}
+      />
     </View>
   )
 }
@@ -112,6 +151,10 @@ const styles = StyleSheet.create({
 
   stackItemLast: {
     marginBottom: 0,
+  },
+  understandingCard: {
+    paddingVertical: 14,
+    minHeight: 70,
   },
 
   authButton: {
@@ -156,9 +199,9 @@ const styles = StyleSheet.create({
 
   understandingLabelRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 5,
   },
 
   progressDot: {
@@ -167,19 +210,20 @@ const styles = StyleSheet.create({
     borderRadius: 4.5,
     backgroundColor: "#2E7D32",
     opacity: 0.7,
-    marginTop: 4,
   },
 
   understandingTitle: {
-    fontSize: 13,
-    color: "#9A9A9A",
+    fontSize: 14,
+    color: "#E2E2E2",
+    fontWeight: "500",
+    lineHeight: 18,
   },
 
   understandingValue: {
-    fontSize: 13,
-    color: "#D0D0D0",
+    fontSize: 12,
+    color: "rgba(232, 232, 232, 0.65)",
     paddingLeft: 17,
-    lineHeight: 18,
+    lineHeight: 17,
   },
 
   connectContent: {
