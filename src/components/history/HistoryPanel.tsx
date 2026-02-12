@@ -29,10 +29,6 @@ type ThemeOption = "Light" | "Dark" | "System"
 type FontSizeOption = "Small" | "Default" | "Large"
 type ResponseLengthOption = "Short" | "Balanced" | "Detailed"
 type HumorLevelOption = "Low" | "Normal" | "Playful"
-type SessionRenderKeySource = Conversation & {
-  sessionId?: string
-  createdAt?: string | number
-}
 
 const panelButtonStyle = {
   height: 64,
@@ -189,16 +185,6 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
     return `${hour12}:${minutes} ${suffix}`
   }
 
-  function getSafeSessionKey(session: Conversation, index: number) {
-    const sessionKeySource = session as SessionRenderKeySource
-    const safeKey =
-      sessionKeySource?.id ||
-      sessionKeySource?.sessionId ||
-      sessionKeySource?.createdAt ||
-      `history-${index}`
-    return String(safeKey)
-  }
-
   function handleClearChatHistory() {
     setChatHistoryCleared(true)
     Alert.alert("Chat history cleared", "Local UI state updated only.")
@@ -317,25 +303,33 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
 
                     {todayOpen && (
                       <View style={styles.sessionList}>
-                        {todaySessions.length === 0 ? (
-                          <Text style={styles.placeholder}>No sessions</Text>
-                        ) : (
-                          todaySessions.map((session, index) => {
-                            const safeKey = getSafeSessionKey(session, index)
-                            return (
-                              <Pressable
-                                key={`${safeKey}-${index}`}
-                                style={styles.sessionRow}
-                                onPress={() => openSession(session)}
-                                onLongPress={() => confirmDelete(session.id)}
-                              >
-                                <Text style={styles.sessionTime}>
-                                  {formatTime(session.lastUpdatedAt)}
-                                </Text>
-                              </Pressable>
-                            )
-                          })
-                        )}
+                        {todaySessions.map(session => {
+                          const timestamp =
+                            session.lastUpdatedAt || session.startedAt
+
+                          const timeLabel =
+                            timestamp && !isNaN(new Date(timestamp).getTime())
+                              ? new Date(timestamp).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : ""
+
+                          if (!timeLabel) {
+                            return null
+                          }
+
+                          return (
+                            <Pressable
+                              key={session.id}
+                              style={styles.sessionRow}
+                              onPress={() => openSession(session)}
+                              onLongPress={() => confirmDelete(session.id)}
+                            >
+                              <Text style={styles.sessionTime}>{timeLabel}</Text>
+                            </Pressable>
+                          )
+                        })}
                       </View>
                     )}
 
@@ -809,13 +803,6 @@ const styles = StyleSheet.create({
     color: "#dcdcdc",
   },
 
-  placeholder: {
-    fontSize: 13,
-    color: "#8a8a8a",
-    marginLeft: 6,
-    marginTop: 4,
-  },
-
   sessionList: {
     marginLeft: 6,
     marginTop: 4,
@@ -823,14 +810,17 @@ const styles = StyleSheet.create({
   },
 
   sessionRow: {
-    paddingVertical: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#252525",
   },
 
   sessionTime: {
-    fontSize: 14,
-    color: "#e2e2e2",
+    fontSize: 13,
+    color: "#9a9a9a",
   },
 
   pastWrapper: {

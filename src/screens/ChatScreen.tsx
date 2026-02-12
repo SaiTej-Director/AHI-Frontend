@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react"
-import AsyncStorage from "@react-native-async-storage/async-storage"
 import { View, KeyboardAvoidingView, Platform, Text } from "react-native"
 import { useNavigation } from "@react-navigation/native"
 import {
@@ -17,13 +16,17 @@ import EditNameModal from "../components/modals/EditNameModal"
 import ConnectWithModal from "../components/modals/ConnectWithModal"
 import UnderstandingLevelsModal from "../components/modals/UnderstandingLevelsModal"
 
-import { saveConversation, Message, Conversation } from "../storage/history"
+import {
+  saveConversation,
+  Message as StoredMessage,
+  Conversation,
+} from "../storage/history"
 import { CHAT_API_URL, SESSION_OPEN_API_URL } from "../config/api"
 import { useAuth } from "../auth/AuthContext"
 
 /* ------------------ helpers ------------------ */
 function genId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 let sessionOpenShown = false
@@ -34,7 +37,15 @@ const CHAT_API = CHAT_API_URL
 const BACKEND_URL = CHAT_API
 const SESSION_OPEN_API = SESSION_OPEN_API_URL
 
-const SESSION_META_KEY = "ahi_session_meta_v1"
+type ChatMessage = {
+  id?: string
+  role?: "user" | "assistant"
+  sender?: "user" | "ahi"
+  content?: string
+  text?: string
+  timestamp?: number
+  __typing?: boolean
+}
 
 /* ------------------ component ------------------ */
 export default function ChatScreen() {
@@ -57,62 +68,24 @@ export default function ChatScreen() {
   }
 
   /* ---------- SESSION ---------- */
-  const sessionIdRef = useRef("")
-  const sessionStartRef = useRef(0)
+  const sessionIdRef = useRef(genId())
+  const sessionStartRef = useRef(Date.now())
   const sessionOpenRequestedRef = useRef(false)
   const sessionOpenPromiseRef = useRef<Promise<void> | null>(null)
-  const [sessionReady, setSessionReady] = useState(false)
+  const [sessionReady, setSessionReady] = useState(true)
 
   /* ---------- CHAT ---------- */
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const hasMessages = messages.length > 0
   // Intentional UX: initial empty state rests lower, then lifts once
   // the conversation starts (do not "fix" this as a bug).
   const initialInputBarOffset = 12
 
-  /* ---------- SESSION META ---------- */
-  useEffect(() => {
-    let active = true
-    const initSessionMeta = async () => {
-      try {
-        const raw = await AsyncStorage.getItem(SESSION_META_KEY)
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          if (parsed?.id && parsed?.startedAt) {
-            sessionIdRef.current = parsed.id
-            sessionStartRef.current = parsed.startedAt
-            if (active) setSessionReady(true)
-            return
-          }
-        }
-        const meta = { id: genId(), startedAt: Date.now() }
-        sessionIdRef.current = meta.id
-        sessionStartRef.current = meta.startedAt
-        await AsyncStorage.setItem(SESSION_META_KEY, JSON.stringify(meta))
-      } catch (e) {
-        console.error("FRONTEND: session meta error", e)
-        const meta = { id: genId(), startedAt: Date.now() }
-        sessionIdRef.current = meta.id
-        sessionStartRef.current = meta.startedAt
-      }
-      if (active) setSessionReady(true)
-    }
-    initSessionMeta()
-    return () => {
-      active = false
-    }
-  }, [])
-
-  async function ensureSessionMetaReady() {
-    if (sessionIdRef.current && sessionStartRef.current) return
-    const meta = { id: genId(), startedAt: Date.now() }
-    sessionIdRef.current = meta.id
-    sessionStartRef.current = meta.startedAt
-    try {
-      await AsyncStorage.setItem(SESSION_META_KEY, JSON.stringify(meta))
-    } catch (e) {
-      console.error("FRONTEND: session meta save error", e)
-    }
+  function startNewSession() {
+    sessionIdRef.current = genId()
+    sessionStartRef.current = Date.now()
+    sessionOpenRequestedRef.current = false
+    sessionOpenPromiseRef.current = null
     setSessionReady(true)
   }
 
@@ -212,7 +185,7 @@ export default function ChatScreen() {
       return
     }
     if (!sessionIdRef.current) {
-      await ensureSessionMetaReady()
+      startNewSession()
     }
     const work = (async () => {
       if (sessionOpenShown || sessionOpenRequestedRef.current) return
@@ -334,12 +307,42 @@ export default function ChatScreen() {
     }
   }
 
-  function persistConversation(nextMessages: Message[]) {
+  function toStoredMessage(
+    message: ChatMessage,
+    index: number,
+    now: number
+  ): StoredMessage | null {
+    const normalizedText = (message?.text ?? message?.content ?? "")
+      .toString()
+      .trim()
+    if (!normalizedText) return null
+
+    const normalizedSender =
+      message?.sender || (message?.role === "user" ? "user" : "ahi")
+
+    return {
+      id: String(message?.id ?? `${sessionIdRef.current}-${index}`),
+      sender: normalizedSender === "user" ? "user" : "ahi",
+      text: normalizedText,
+      timestamp:
+        typeof message?.timestamp === "number" ? message.timestamp : now,
+    }
+  }
+
+  function persistConversation(nextMessages: ChatMessage[]) {
+    const now = Date.now()
+    const normalizedMessages = nextMessages
+      .map((message, index) => toStoredMessage(message, index, now))
+      .filter((message): message is StoredMessage => message !== null)
+
+    console.log("Persisting messages count:", normalizedMessages.length)
+    if (normalizedMessages.length === 0) return
+
     const conversation: Conversation = {
       id: sessionIdRef.current,
-      messages: nextMessages,
+      messages: normalizedMessages,
       startedAt: sessionStartRef.current,
-      lastUpdatedAt: Date.now(),
+      lastUpdatedAt: now,
     }
     saveConversation(conversation)
   }
@@ -371,6 +374,9 @@ export default function ChatScreen() {
           !selectedMessageIds.has(message.id ?? index.toString())
       )
       persistConversation(nextMessages)
+      if (nextMessages.length === 0) {
+        startNewSession()
+      }
       return nextMessages
     })
     exitDeleteMode()
@@ -390,10 +396,15 @@ export default function ChatScreen() {
   }, [insets.top, insets.bottom, windowHeight])
 
   useEffect(() => {
+    if (!sessionReady || messages.length === 0) return
+    persistConversation(messages)
+  }, [messages, sessionReady])
+
+  useEffect(() => {
     return () => {
       persistConversation(messages)
     }
-  }, [messages])
+  }, [])
 
   /* ---------- SESSION OPEN ---------- */
   useEffect(() => {
