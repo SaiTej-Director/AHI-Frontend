@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { View, KeyboardAvoidingView, Platform, Text } from "react-native"
 import { useNavigation } from "@react-navigation/native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -52,7 +53,8 @@ export default function ChatScreen() {
   const navigation = useNavigation<any>()
   const insets = useSafeAreaInsets()
   const { height: windowHeight } = useWindowDimensions()
-  const { headerName, accountName, setHeaderName } = useAuth()
+  const { accountName } = useAuth()
+  const [headerName, setHeaderName] = useState("AHI")
   /* ---------- USER ---------- */
   const [editNameOpen, setEditNameOpen] = useState(false)
   const [connectWithOpen, setConnectWithOpen] = useState(false)
@@ -418,6 +420,15 @@ export default function ChatScreen() {
     }
   }, [])
 
+  useEffect(() => {
+    ;(async () => {
+      const savedHeaderName = await AsyncStorage.getItem("headerName")
+      if (savedHeaderName && savedHeaderName.trim()) {
+        setHeaderName(savedHeaderName)
+      }
+    })()
+  }, [])
+
   /* ------------------ RENDER ------------------ */
   return (
     <View style={{ flex: 1, backgroundColor: "#121212" }}>
@@ -492,8 +503,10 @@ export default function ChatScreen() {
         visible={editNameOpen}
         currentName={headerName}
         onClose={() => setEditNameOpen(false)}
-        onSave={name => {
-          setHeaderName(name)
+        onSave={async name => {
+          const nextHeaderName = name.trim() || "AHI"
+          setHeaderName(nextHeaderName)
+          await AsyncStorage.setItem("headerName", nextHeaderName)
           setEditNameOpen(false)
         }}
       />
