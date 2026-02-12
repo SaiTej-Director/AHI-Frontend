@@ -1,5 +1,6 @@
 import React, { useState } from "react"
 import { View, TextInput, Pressable, Text, Platform } from "react-native"
+import { getChatFontScale, useAppearance } from "../../context/AppearanceContext"
 
 type Props = {
   onSend: (text: string) => void
@@ -14,6 +15,12 @@ export default function InputBar({
   isDeleteMode,
   onDeleteSelected,
 }: Props) {
+  const { chatFontSize, resolvedTheme } = useAppearance()
+  const scale = getChatFontScale(chatFontSize)
+  const containerColor = resolvedTheme === "light" ? "#FFFFFF" : "#121212"
+  const borderColor = resolvedTheme === "light" ? "#DADADA" : "#1f1f1f"
+  const textColor = resolvedTheme === "light" ? "#1D1D1D" : "#fff"
+  const placeholderColor = resolvedTheme === "light" ? "#8A8A8A" : "#777"
   const [text, setText] = useState("")
 
   function send() {
@@ -43,8 +50,8 @@ export default function InputBar({
       style={{
         flexDirection: "column",
         borderTopWidth: 1,
-        borderColor: "#1f1f1f",
-        backgroundColor: "#121212",
+        borderColor,
+        backgroundColor: containerColor,
       }}
     >
       <View
@@ -59,7 +66,7 @@ export default function InputBar({
             onChangeText={setText}
             editable={!disabled}
             placeholder="Type here…"
-            placeholderTextColor="#777"
+            placeholderTextColor={placeholderColor}
             multiline
             scrollEnabled={false} // 🔥 THIS IS THE KEY
             onKeyPress={handleWebKeyPress}
@@ -67,11 +74,11 @@ export default function InputBar({
               flex: 1,
               minHeight: 48,
               maxHeight: 140,
-              color: "#fff",
-              fontSize: 16,
+              color: textColor,
+              fontSize: 16 * scale,
               paddingHorizontal: 14,
               paddingVertical: 12,
-              backgroundColor: "#121212",
+              backgroundColor: containerColor,
               borderRadius: 14,
             }}
           />

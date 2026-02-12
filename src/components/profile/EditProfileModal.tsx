@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   Image,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -96,102 +95,107 @@ export default function EditProfileModal({
     }
   }
 
+  if (!visible) return null
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          <Text style={styles.title}>Edit profile</Text>
-
-          <TextInput
-            value={newName}
-            onChangeText={setNewName}
-            autoFocus
-            placeholder="Your name"
-            placeholderTextColor="#777"
-            editable={!busy && !logoutBusy}
-            style={styles.input}
-          />
-
-          <View style={styles.photoRow}>
-            {previewPhoto ? (
-              <Image source={{ uri: previewPhoto }} style={styles.photoCircle} />
-            ) : (
-              <View style={styles.photoCirclePlaceholder} />
-            )}
-            <Pressable
-              disabled={busy || logoutBusy}
-              style={[styles.ghostBtn, (busy || logoutBusy) && styles.disabledBtn]}
-              onPress={handleChangePhoto}
-            >
-              <Text style={styles.ghostBtnText}>Change Photo</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.actions}>
-            <Pressable
-              disabled={busy || logoutBusy}
-              onPress={onClose}
-              style={styles.cancelBtn}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              disabled={busy || logoutBusy}
-              onPress={handleSave}
-              style={[styles.saveBtn, (busy || logoutBusy) && styles.disabledBtn]}
-            >
-              {busy ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.saveText}>Save</Text>
-              )}
-            </Pressable>
-          </View>
-
-          <View style={styles.logoutSection}>
-            <View style={styles.divider} />
-            <Pressable
-              disabled={busy || logoutBusy}
-              onPress={handleLogout}
-              style={[styles.logoutBtn, (busy || logoutBusy) && styles.disabledBtn]}
-            >
-              {logoutBusy ? (
-                <ActivityIndicator color="#D48383" size="small" />
-              ) : (
-                <Text style={styles.logoutText}>Logout</Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
+    <View style={styles.modalContent}>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Edit Profile</Text>
+        <Pressable onPress={onClose} hitSlop={8} style={styles.closeButton}>
+          <Text style={styles.closeText}>×</Text>
+        </Pressable>
       </View>
-    </Modal>
+
+      <TextInput
+        value={newName}
+        onChangeText={setNewName}
+        placeholder="Your name"
+        placeholderTextColor="#777"
+        editable={!busy && !logoutBusy}
+        style={styles.input}
+      />
+
+      <View style={styles.photoRow}>
+        {previewPhoto ? (
+          <Image source={{ uri: previewPhoto }} style={styles.photoCircle} />
+        ) : (
+          <View style={styles.photoCirclePlaceholder} />
+        )}
+        <Pressable
+          disabled={busy || logoutBusy}
+          style={[styles.ghostBtn, (busy || logoutBusy) && styles.disabledBtn]}
+          onPress={handleChangePhoto}
+        >
+          <Text style={styles.ghostBtnText}>Change Photo</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.actions}>
+        <Pressable
+          disabled={busy || logoutBusy}
+          onPress={onClose}
+          style={styles.cancelBtn}
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
+        </Pressable>
+        <Pressable
+          disabled={busy || logoutBusy}
+          onPress={handleSave}
+          style={[styles.saveBtn, (busy || logoutBusy) && styles.disabledBtn]}
+        >
+          {busy ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.saveText}>Save</Text>
+          )}
+        </Pressable>
+      </View>
+
+      <View style={styles.logoutSection}>
+        <View style={styles.divider} />
+        <Pressable
+          disabled={busy || logoutBusy}
+          onPress={handleLogout}
+          style={[styles.logoutBtn, (busy || logoutBusy) && styles.disabledBtn]}
+        >
+          {logoutBusy ? (
+            <ActivityIndicator color="#D48383" size="small" />
+          ) : (
+            <Text style={styles.logoutText}>Logout</Text>
+          )}
+        </Pressable>
+      </View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  modalContent: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "center",
-    paddingHorizontal: 20,
   },
-  card: {
-    backgroundColor: "#181818",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#262626",
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
   },
   title: {
     color: "#FFFFFF",
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "600",
-    marginBottom: 14,
+  },
+  closeButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#222",
+  },
+  closeText: {
+    color: "#e5e5e5",
+    fontSize: 18,
+    lineHeight: 18,
   },
   photoRow: {
     flexDirection: "row",

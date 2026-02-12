@@ -1,5 +1,12 @@
 import React, { useMemo, useState } from "react"
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native"
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Alert,
+} from "react-native"
 
 type TabKey = "chat" | "meet"
 
@@ -57,6 +64,14 @@ export default function ConnectWithModal({
             "Meetups are intentional and opt-in, designed for safety and clarity.",
         }
   }, [activeTab, showChatInfo, showMeetInfo])
+
+  const handleLockedOptionPress = () => {
+    Alert.alert(
+      "Coming Soon",
+      "This matching option will be available in a future update.",
+      [{ text: "OK" }],
+    )
+  }
 
   if (!visible) return null
 
@@ -142,7 +157,16 @@ export default function ConnectWithModal({
 
           <View style={styles.optionsList}>
             {tabData.options.map(option => (
-              <View key={option.label} style={styles.optionRow}>
+              <Pressable
+                key={option.label}
+                onPress={handleLockedOptionPress}
+                accessibilityRole="button"
+                accessibilityLabel={`${option.label} locked option`}
+                style={({ pressed }) => [
+                  styles.optionRow,
+                  pressed && styles.optionRowPressed,
+                ]}
+              >
                 <View style={styles.optionText}>
                   <Text style={styles.optionLabel}>{option.label}</Text>
                   <Text style={styles.optionDescription}>
@@ -153,7 +177,7 @@ export default function ConnectWithModal({
                   <View style={styles.lockShackle} />
                   <View style={styles.lockBody} />
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         </ScrollView>
@@ -332,7 +356,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#1A1A1A",
     paddingVertical: 10,
     paddingHorizontal: 12,
-    opacity: 0.6,
+    opacity: 0.85,
+  },
+  optionRowPressed: {
+    transform: [{ scale: 0.96 }],
   },
   optionText: {
     flex: 1,

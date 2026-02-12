@@ -2,6 +2,7 @@
 import React from "react"
 import { Text, Pressable, View } from "react-native"
 import { Message } from "../../storage/history"
+import { getChatFontScale, useAppearance } from "../../context/AppearanceContext"
 
 type Props = {
   message: Message
@@ -16,8 +17,13 @@ export default function MessageBubble({
   onPress,
   onLongPress,
 }: Props) {
+  const { chatFontSize, resolvedTheme } = useAppearance()
+  const scale = getChatFontScale(chatFontSize)
   const isUser = message.role === "user"
   const text = message.content ?? ""
+  const userTextColor = resolvedTheme === "light" ? "#1F1F1F" : "#eaeaea"
+  const ahiTextColor = resolvedTheme === "light" ? "#202020" : "#dcdcdc"
+  const ahiBorder = resolvedTheme === "light" ? "rgba(0,0,0,0.2)" : "rgba(220,220,220,0.25)"
 
   // USER: text in space (no bubble)
   if (isUser) {
@@ -41,9 +47,9 @@ export default function MessageBubble({
         >
           <Text
             style={{
-              color: "#eaeaea",
-              fontSize: 16,
-              lineHeight: 22,
+              color: userTextColor,
+              fontSize: 16 * scale,
+              lineHeight: 22 * scale,
             }}
           >
             {text}
@@ -67,7 +73,7 @@ export default function MessageBubble({
           paddingVertical: 8,
           borderRadius: 8,
           borderWidth: 1,
-          borderColor: isSelected ? "rgba(59,130,246,0.5)" : "rgba(220,220,220,0.25)",
+          borderColor: isSelected ? "rgba(59,130,246,0.5)" : ahiBorder,
           backgroundColor: isSelected ? "rgba(59,130,246,0.08)" : "transparent",
           opacity: isSelected ? 0.6 : 1,
           position: "relative",
@@ -75,9 +81,9 @@ export default function MessageBubble({
       >
         <Text
           style={{
-            color: "#dcdcdc",
-            fontSize: 15.5,
-            lineHeight: 22,
+            color: ahiTextColor,
+            fontSize: 15.5 * scale,
+            lineHeight: 22 * scale,
           }}
         >
           {text}

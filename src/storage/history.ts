@@ -63,6 +63,10 @@ export async function clearHistory(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY)
 }
 
+export async function clearAllConversations(): Promise<void> {
+  await clearHistory()
+}
+
 export async function deleteByPredicate(
   predicate: (c: Conversation) => boolean
 ): Promise<void> {

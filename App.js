@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import RootNavigator from "./src/navigation/RootNavigator";
 import * as Updates from "expo-updates";
 import { AuthProvider } from "./src/auth/AuthContext";
+import { AppearanceProvider } from "./src/context/AppearanceContext";
 
 async function safeOTA() {
   try {
@@ -22,8 +23,10 @@ export default function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <AppearanceProvider>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+    </AppearanceProvider>
   );
 }

@@ -8,6 +8,7 @@ type Props = {
   onPressAuth?: () => void;
   onPressUnderstanding?: () => void;
   onPressConnect?: () => void;
+  onPressProfile?: () => void;
   accountName?: string | null;
 };
 
@@ -17,6 +18,7 @@ export default function LeftDrawer({
   onPressAuth,
   onPressUnderstanding,
   onPressConnect,
+  onPressProfile,
   accountName,
 }: Props) {
   if (!visible) return null;
@@ -41,6 +43,10 @@ export default function LeftDrawer({
           onPressConnect={() => {
             onClose()
             onPressConnect?.()
+          }}
+          onPressProfile={() => {
+            onClose()
+            onPressProfile?.()
           }}
           accountName={accountName}
         />

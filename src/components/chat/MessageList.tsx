@@ -3,6 +3,7 @@ import { FlatList, View } from "react-native"
 import MessageBubble from "./MessageBubble"
 import { Message } from "../../storage/history"
 import TypingIndicator from "./TypingIndicator"
+import { useAppearance } from "../../context/AppearanceContext"
 
 type Props = {
   messages: Message[]
@@ -19,6 +20,8 @@ export default function MessageList({
   onLongPressMessage,
   isDeleteMode,
 }: Props) {
+  const { resolvedTheme } = useAppearance()
+  const listBackground = resolvedTheme === "light" ? "#F5F5F5" : "#121212"
   const listRef = useRef<FlatList<Message>>(null)
   const hasInitialScrollRef = useRef(false)
 
@@ -32,10 +35,10 @@ export default function MessageList({
   }, [messages.length])
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#121212" }}>
+    <View style={{ flex: 1, backgroundColor: listBackground }}>
       <FlatList
         ref={listRef}
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: listBackground }}
         data={messages}
         keyExtractor={(item, index) => item.id ?? index.toString()}
         contentInsetAdjustmentBehavior="never"

@@ -96,20 +96,11 @@ export default function UnderstandingLevelsModal({ visible, onClose }: Props) {
                 <LevelIcon title={stage.title} />
                 <Text style={styles.stageTitle}>{stage.title}</Text>
               </View>
-              <Text style={styles.stageDescription}>{stage.description}</Text>
+              <Text numberOfLines={2} style={styles.stageDescription}>
+                {stage.description}
+              </Text>
             </View>
           ))}
-
-          <View style={styles.noteBlock}>
-            <Text style={styles.noteText}>
-              Progress happens naturally through conversation.
-            </Text>
-            <Text style={styles.noteText}>No scores. No pressure.</Text>
-            <Text style={styles.noteText}>Nothing unlocks suddenly.</Text>
-            <Text style={styles.noteText}>
-              Connect With unlocks only after sufficient understanding.
-            </Text>
-          </View>
         </ScrollView>
       </Animated.View>
     </View>
@@ -179,13 +170,13 @@ const styles = StyleSheet.create({
   },
   closeText: { color: "#e5e5e5", fontSize: 18, lineHeight: 18 },
   content: {
-    paddingBottom: 18,
+    paddingBottom: 12,
   },
   stageCard: {
-    marginBottom: 16,
+    marginBottom: 12,
     borderRadius: 20,
     paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingVertical: 11,
     backgroundColor: "rgba(255,255,255,0.03)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
@@ -208,30 +199,18 @@ const styles = StyleSheet.create({
   stageHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   stageTitle: {
     color: "#EAEAEA",
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "500",
     letterSpacing: 0.2,
   },
   stageDescription: {
     color: "#BEBEBE",
     fontSize: 13,
-    lineHeight: 19,
-  },
-  noteBlock: {
-    marginTop: 16,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.08)",
-    gap: 8,
-  },
-  noteText: {
-    color: "#9A9A9A",
-    fontSize: 12,
-    lineHeight: 17,
+    lineHeight: 20,
   },
   iconWrap: {
     width: 18,

@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React from "react"
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
 } from "react-native"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useAuth } from "../../auth/AuthContext"
-import EditProfileModal from "../profile/EditProfileModal"
 
 const panelButtonStyle = {
   height: 64,
@@ -24,6 +23,7 @@ type Props = {
   onPressAuth?: () => void
   onPressUnderstanding?: () => void
   onPressConnect?: () => void
+  onPressProfile?: () => void
   accountName?: string | null
 }
 
@@ -31,10 +31,10 @@ export default function LeftPanel({
   onPressAuth,
   onPressUnderstanding,
   onPressConnect,
+  onPressProfile,
   accountName,
 }: Props) {
   const { user, profilePhoto } = useAuth()
-  const [editProfileOpen, setEditProfileOpen] = useState(false)
 
   return (
     <View style={styles.container}>
@@ -46,7 +46,7 @@ export default function LeftPanel({
         {user ? (
           <Pressable
             style={[styles.stackItem, styles.accountRow]}
-            onPress={() => setEditProfileOpen(true)}
+            onPress={onPressProfile}
           >
             {profilePhoto ? (
               <Image source={{ uri: profilePhoto }} style={styles.avatarImage} />
@@ -108,14 +108,6 @@ export default function LeftPanel({
         <View style={styles.placeholderBox} />
         <View style={styles.placeholderBox} />
       </ScrollView>
-      {user ? (
-        <EditProfileModal
-          visible={editProfileOpen}
-          currentName={accountName || "You"}
-          currentPhotoUrl={profilePhoto}
-          onClose={() => setEditProfileOpen(false)}
-        />
-      ) : null}
     </View>
   )
 }

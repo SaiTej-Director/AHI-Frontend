@@ -7,8 +7,13 @@ import {
   Pressable,
   ScrollView,
   Alert,
+  Linking,
+  Platform,
+  Share,
 } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { useNavigation } from "@react-navigation/native"
+import Constants from "expo-constants"
 import {
   Conversation,
   getEarlierSessions,
@@ -18,6 +23,10 @@ import {
   deleteConversation,
   deleteByPredicate,
 } from "../../storage/history"
+import { useAppearance } from "../../context/AppearanceContext"
+import { useAuth } from "../../auth/AuthContext"
+import { deleteUser } from "firebase/auth"
+import { auth } from "../../firebase/config"
 
 type Props = {
   visible: boolean
@@ -39,12 +48,28 @@ const panelButtonStyle = {
 }
 
 export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
+  const navigation = useNavigation<any>()
   const insets = useSafeAreaInsets()
+  const { user, logout } = useAuth()
+  const {
+    appTheme,
+    setAppTheme,
+    appLanguage,
+    setAppLanguage,
+    chatFontSize,
+    setChatFontSize,
+    resolvedTheme,
+  } = useAppearance()
+  const cardBackground = resolvedTheme === "light" ? "#FFFFFF" : "#151515"
+  const modalBackground = resolvedTheme === "light" ? "#F2F2F2" : "#181818"
+  const modalBorder = resolvedTheme === "light" ? "#DDDDDD" : "#242424"
+  const headingText = resolvedTheme === "light" ? "#5E5E5E" : "#b8b8b8"
+  const bodyText = resolvedTheme === "light" ? "#343434" : "#cdcdcd"
+  const sectionTitle = resolvedTheme === "light" ? "#101010" : "#ffffff"
 
   const [historyVisible, setHistoryVisible] = useState(false)
   const [settingsVisible, setSettingsVisible] = useState(false)
   const keepModalOnCloseRef = useRef(false)
-  const [historyOpen, setHistoryOpen] = useState(true)
   const [todayOpen, setTodayOpen] = useState(false)
   const [pastOpen, setPastOpen] = useState(false)
   const [todaySessions, setTodaySessions] = useState<Conversation[]>([])
@@ -54,13 +79,7 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
   const [earlierSessions, setEarlierSessions] = useState<Conversation[]>([])
   const [selectedSession, setSelectedSession] =
     useState<Conversation | null>(null)
-  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] =
-    useState(false)
-  const [theme, setTheme] = useState<ThemeOption>("System")
   const [languageOpen, setLanguageOpen] = useState(false)
-  const [language, setLanguage] = useState("English")
-  const [fontSize, setFontSize] = useState<FontSizeOption>("Default")
-  const [chatHistoryCleared, setChatHistoryCleared] = useState(false)
   const [responseLength, setResponseLength] =
     useState<ResponseLengthOption>("Balanced")
   const [humorLevel, setHumorLevel] = useState<HumorLevelOption>("Normal")
@@ -106,7 +125,6 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
         setHistoryVisible(false)
         setSettingsVisible(false)
         setSelectedSession(null)
-        setShowDeleteAccountConfirm(false)
         setLanguageOpen(false)
       }
     }
@@ -185,9 +203,125 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
     return `${hour12}:${minutes} ${suffix}`
   }
 
-  function handleClearChatHistory() {
-    setChatHistoryCleared(true)
-    Alert.alert("Chat history cleared", "Local UI state updated only.")
+  function handleOpenPrivacy() {
+    setSettingsVisible(false)
+    navigation.navigate("PrivacyPolicy")
+  }
+
+  function handleOpenTerms() {
+    setSettingsVisible(false)
+    navigation.navigate("Terms")
+  }
+
+  function handleSetTheme(nextTheme: ThemeOption) {
+    setAppTheme(nextTheme).catch(() => {
+      Alert.alert("Unable to save theme", "Please try again.")
+    })
+  }
+
+  function handleSetFontSize(nextFontSize: FontSizeOption) {
+    setChatFontSize(nextFontSize).catch(() => {
+      Alert.alert("Unable to save font size", "Please try again.")
+    })
+  }
+
+  function handleSetLanguage(nextLanguage: string) {
+    setAppLanguage(nextLanguage)
+      .then(() => setLanguageOpen(false))
+      .catch(() => {
+        Alert.alert("Unable to save language", "Please try again.")
+      })
+  }
+
+  function handleLogout() {
+    logout().catch(() => {
+      Alert.alert("Logout failed", "Please try again.")
+    })
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      "Delete account?",
+      "This permanently deletes your account.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const firebaseUser = auth.currentUser
+              if (!firebaseUser) {
+                await logout()
+                return
+              }
+              await deleteUser(firebaseUser)
+              await logout()
+              Alert.alert("Account deleted", "You are now in guest mode.")
+            } catch (error: any) {
+              if (error?.code === "auth/requires-recent-login") {
+                Alert.alert(
+                  "Re-authentication required",
+                  "Please sign in again and retry account deletion."
+                )
+                return
+              }
+              Alert.alert("Delete failed", "Unable to delete account right now.")
+            }
+          },
+        },
+      ]
+    )
+  }
+
+  async function handleSendFeedback() {
+    const emailUrl = "mailto:support@ahiapp.com"
+    const canOpen = await Linking.canOpenURL(emailUrl)
+    if (!canOpen) {
+      Alert.alert("Cannot open email app", "Please email support@ahiapp.com")
+      return
+    }
+    await Linking.openURL(emailUrl)
+  }
+
+  async function handleRateApp() {
+    const url =
+      Platform.OS === "android"
+        ? "https://play.google.com/store/apps/details?id=com.ahiapp.placeholder"
+        : "https://ahiapp.com/rate"
+    const canOpen = await Linking.canOpenURL(url)
+    if (!canOpen) {
+      Alert.alert("Cannot open link", url)
+      return
+    }
+    await Linking.openURL(url)
+  }
+
+  async function handleOpenAppPermissions() {
+    try {
+      await Linking.openSettings()
+    } catch {
+      Alert.alert("Unavailable", "Unable to open app settings on this device.")
+    }
+  }
+
+  async function handleExportChat() {
+    const conversations = await loadHistory()
+    if (conversations.length === 0) {
+      Alert.alert("No chat history", "Start a conversation to export chat data.")
+      return
+    }
+    await Share.share({
+      message: JSON.stringify(conversations, null, 2),
+      title: "AHI Chat Export",
+    })
+  }
+
+  function handleCloseOverlay() {
+    keepModalOnCloseRef.current = false
+    setHistoryVisible(false)
+    setSettingsVisible(false)
+    onClose()
   }
 
   return (
@@ -233,36 +367,65 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
       {/* History modal */}
       {historyVisible && (
         <View style={styles.modalLayer}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setHistoryVisible(false)}
-          />
+          <Pressable style={styles.modalBackdrop} onPress={handleCloseOverlay} />
           <View
             style={[
               styles.modalCard,
               {
+                backgroundColor: modalBackground,
+                borderColor: modalBorder,
                 paddingTop: insets.top + 12,
                 paddingBottom: insets.bottom + 16,
               },
             ]}
           >
             {selectedSession ? (
-              <View style={styles.headerRow}>
+              <View style={styles.modalHeaderRow}>
+                <View style={styles.headerLeftGroup}>
+                  <Pressable
+                    onPress={() => setSelectedSession(null)}
+                    style={styles.backButton}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.backText}>←</Text>
+                  </Pressable>
+                  <Text
+                    style={[
+                      styles.title,
+                      styles.modalHeaderTitle,
+                      { color: sectionTitle },
+                    ]}
+                  >
+                    History
+                  </Text>
+                </View>
                 <Pressable
-                  onPress={() => setSelectedSession(null)}
-                  style={styles.backButton}
+                  onPress={handleCloseOverlay}
                   hitSlop={8}
+                  style={styles.closeButton}
                 >
-                  <Text style={styles.backText}>←</Text>
+                  <Text style={styles.closeText}>×</Text>
                 </Pressable>
-                <Text style={styles.title}>History</Text>
               </View>
             ) : (
-              <Pressable onPress={() => setHistoryOpen(v => !v)}>
-                <Text style={styles.title}>
-                  History {historyOpen ? "▾" : "▸"}
+              <View style={styles.modalHeaderRow}>
+                <Text
+                  style={[
+                    styles.title,
+                    styles.modalHeaderTitle,
+                    { color: sectionTitle },
+                  ]}
+                >
+                  History
                 </Text>
-              </Pressable>
+                <Pressable
+                  onPress={handleCloseOverlay}
+                  hitSlop={8}
+                  style={styles.closeButton}
+                >
+                  <Text style={styles.closeText}>×</Text>
+                </Pressable>
+              </View>
             )}
 
             {selectedSession ? (
@@ -290,105 +453,96 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
                 contentContainerStyle={styles.historyContent}
                 showsVerticalScrollIndicator={false}
               >
-                {historyOpen && (
-                  <>
-                    <Pressable
-                      onPress={() => setTodayOpen(v => !v)}
-                      style={styles.sectionHeader}
-                    >
-                      <Text style={styles.sectionText}>
-                        Today {todayOpen ? "▾" : "▸"}
-                      </Text>
-                    </Pressable>
+                <>
+                  <Pressable
+                    onPress={() => setTodayOpen(v => !v)}
+                    style={styles.sectionHeader}
+                  >
+                    <Text style={styles.sectionText}>
+                      Today {todayOpen ? "▾" : "▸"}
+                    </Text>
+                  </Pressable>
 
-                    {todayOpen && (
-                      <View style={styles.sessionList}>
-                        {todaySessions.map(session => {
-                          const timestamp =
-                            session.lastUpdatedAt || session.startedAt
+                  {todayOpen && (
+                    <View style={styles.sessionList}>
+                      {todaySessions.map(session => {
+                        const timestamp = session.lastUpdatedAt || session.startedAt
 
-                          const timeLabel =
-                            timestamp && !isNaN(new Date(timestamp).getTime())
-                              ? new Date(timestamp).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : ""
+                        const timeLabel =
+                          timestamp && !isNaN(new Date(timestamp).getTime())
+                            ? new Date(timestamp).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : ""
 
-                          if (!timeLabel) {
-                            return null
-                          }
+                        if (!timeLabel) {
+                          return null
+                        }
 
-                          return (
-                            <Pressable
-                              key={session.id}
-                              style={styles.sessionRow}
-                              onPress={() => openSession(session)}
-                              onLongPress={() => confirmDelete(session.id)}
-                            >
-                              <Text style={styles.sessionTime}>{timeLabel}</Text>
-                            </Pressable>
+                        return (
+                          <Pressable
+                            key={session.id}
+                            style={styles.sessionRow}
+                            onPress={() => openSession(session)}
+                            onLongPress={() => confirmDelete(session.id)}
+                          >
+                            <Text style={styles.sessionTime}>{timeLabel}</Text>
+                          </Pressable>
+                        )
+                      })}
+                    </View>
+                  )}
+
+                  <Pressable
+                    onPress={() => setPastOpen(v => !v)}
+                    style={[styles.sectionHeader, { marginTop: 12 }]}
+                  >
+                    <Text style={styles.sectionText}>
+                      Past {pastOpen ? "▾" : "▸"}
+                    </Text>
+                  </Pressable>
+
+                  {pastOpen && (
+                    <View style={styles.pastWrapper}>
+                      <Pressable
+                        style={styles.pillButton}
+                        onPress={() => {
+                          const merged = buildMergedConversation(
+                            yesterdaySessions,
+                            "yesterday-merged"
                           )
-                        })}
-                      </View>
-                    )}
+                          if (merged) openSession(merged)
+                        }}
+                        onLongPress={() =>
+                          confirmDeleteMerged(yesterdaySessions, "yesterday-merged")
+                        }
+                      >
+                        <Text style={styles.pillText}>
+                          Yesterday ({yesterdaySessions.length})
+                        </Text>
+                      </Pressable>
 
-                    <Pressable
-                      onPress={() => setPastOpen(v => !v)}
-                      style={[styles.sectionHeader, { marginTop: 12 }]}
-                    >
-                      <Text style={styles.sectionText}>
-                        Past {pastOpen ? "▾" : "▸"}
-                      </Text>
-                    </Pressable>
-
-                    {pastOpen && (
-                      <View style={styles.pastWrapper}>
-                        <Pressable
-                          style={styles.pillButton}
-                          onPress={() => {
-                            const merged = buildMergedConversation(
-                              yesterdaySessions,
-                              "yesterday-merged"
-                            )
-                            if (merged) openSession(merged)
-                          }}
-                          onLongPress={() =>
-                            confirmDeleteMerged(
-                              yesterdaySessions,
-                              "yesterday-merged"
-                            )
-                          }
-                        >
-                          <Text style={styles.pillText}>
-                            Yesterday ({yesterdaySessions.length})
-                          </Text>
-                        </Pressable>
-
-                        <Pressable
-                          style={[styles.pillButton, { marginTop: 8 }]}
-                          onPress={() => {
-                            const merged = buildMergedConversation(
-                              earlierSessions,
-                              "earlier-merged"
-                            )
-                            if (merged) openSession(merged)
-                          }}
-                          onLongPress={() =>
-                            confirmDeleteMerged(
-                              earlierSessions,
-                              "earlier-merged"
-                            )
-                          }
-                        >
-                          <Text style={styles.pillText}>
-                            Earlier ({earlierSessions.length})
-                          </Text>
-                        </Pressable>
-                      </View>
-                    )}
-                  </>
-                )}
+                      <Pressable
+                        style={[styles.pillButton, { marginTop: 8 }]}
+                        onPress={() => {
+                          const merged = buildMergedConversation(
+                            earlierSessions,
+                            "earlier-merged"
+                          )
+                          if (merged) openSession(merged)
+                        }}
+                        onLongPress={() =>
+                          confirmDeleteMerged(earlierSessions, "earlier-merged")
+                        }
+                      >
+                        <Text style={styles.pillText}>
+                          Earlier ({earlierSessions.length})
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </>
               </ScrollView>
             )}
           </View>
@@ -398,46 +552,66 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
       {/* Settings modal */}
       {settingsVisible && (
         <View style={styles.modalLayer}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setSettingsVisible(false)}
-          />
+          <Pressable style={styles.modalBackdrop} onPress={handleCloseOverlay} />
           <View
             style={[
               styles.modalCard,
               {
+                backgroundColor: modalBackground,
+                borderColor: modalBorder,
                 paddingTop: insets.top + 12,
                 paddingBottom: insets.bottom + 16,
               },
             ]}
           >
-            <Text style={styles.title}>Settings</Text>
+            <View style={styles.modalHeaderRow}>
+              <Text
+                style={[
+                  styles.title,
+                  styles.modalHeaderTitle,
+                  { color: sectionTitle },
+                ]}
+              >
+                Settings
+              </Text>
+              <Pressable
+                onPress={handleCloseOverlay}
+                hitSlop={8}
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeText}>×</Text>
+              </Pressable>
+            </View>
             <ScrollView
               style={styles.viewer}
               contentContainerStyle={styles.settingsContent}
               showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.settingsSectionHeader}>Account</Text>
-              <View style={styles.settingsCard}>
+              <Text style={[styles.settingsSectionHeader, { color: headingText }]}>
+                Account
+              </Text>
+              <View style={[styles.settingsCard, { backgroundColor: cardBackground }]}>
                 <View style={styles.profileRow}>
-                  <Text style={styles.profileName}>AHI User</Text>
-                  <Text style={styles.profileEmail}>user@ahi.app</Text>
+                  <Text style={styles.profileName}>{user?.displayName || "Guest User"}</Text>
+                  <Text style={styles.profileEmail}>{user?.email || "Not logged in"}</Text>
                 </View>
-                <Pressable style={styles.settingsButton}>
+                <Pressable style={styles.settingsButton} onPress={handleLogout}>
                   <Text style={styles.settingsButtonText}>Logout</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.settingsButton, styles.destructiveButton]}
-                  onPress={() => setShowDeleteAccountConfirm(true)}
+                  onPress={handleDeleteAccount}
                 >
                   <Text style={styles.destructiveText}>Delete Account</Text>
                 </Pressable>
               </View>
 
-              <Text style={styles.settingsSectionHeader}>Chat Preferences</Text>
-              <View style={styles.settingsCard}>
+              <Text style={[styles.settingsSectionHeader, { color: headingText }]}>
+                Chat Preferences
+              </Text>
+              <View style={[styles.settingsCard, { backgroundColor: cardBackground }]}>
                 <View style={styles.settingsRow}>
-                  <Text style={styles.settingsLabel}>Theme</Text>
+                  <Text style={[styles.settingsLabel, { color: bodyText }]}>Theme</Text>
                   <View style={styles.segmentedRow}>
                     {(["Light", "Dark", "System"] as ThemeOption[]).map(
                       option => (
@@ -445,14 +619,14 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
                           key={option}
                           style={[
                             styles.segmentButton,
-                            theme === option && styles.segmentButtonActive,
+                            appTheme === option && styles.segmentButtonActive,
                           ]}
-                          onPress={() => setTheme(option)}
+                          onPress={() => handleSetTheme(option)}
                         >
                           <Text
                             style={[
                               styles.segmentText,
-                              theme === option && styles.segmentTextActive,
+                              appTheme === option && styles.segmentTextActive,
                             ]}
                           >
                             {option}
@@ -464,13 +638,13 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
                 </View>
 
                 <View style={styles.settingsRow}>
-                  <Text style={styles.settingsLabel}>Language</Text>
+                  <Text style={[styles.settingsLabel, { color: bodyText }]}>Language</Text>
                   <Pressable
                     style={styles.dropdownButton}
                     onPress={() => setLanguageOpen(v => !v)}
                   >
                     <Text style={styles.dropdownText}>
-                      {language} {languageOpen ? "▴" : "▾"}
+                      {appLanguage} {languageOpen ? "▴" : "▾"}
                     </Text>
                   </Pressable>
                   {languageOpen && (
@@ -479,15 +653,12 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
                         <Pressable
                           key={option}
                           style={styles.dropdownItem}
-                          onPress={() => {
-                            setLanguage(option)
-                            setLanguageOpen(false)
-                          }}
+                          onPress={() => handleSetLanguage(option)}
                         >
                           <Text
                             style={[
                               styles.dropdownItemText,
-                              language === option && styles.segmentTextActive,
+                              appLanguage === option && styles.segmentTextActive,
                             ]}
                           >
                             {option}
@@ -499,7 +670,7 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
                 </View>
 
                 <View style={styles.settingsRow}>
-                  <Text style={styles.settingsLabel}>Font Size</Text>
+                  <Text style={[styles.settingsLabel, { color: bodyText }]}>Font Size</Text>
                   <View style={styles.segmentedRow}>
                     {(["Small", "Default", "Large"] as FontSizeOption[]).map(
                       option => (
@@ -507,14 +678,14 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
                           key={option}
                           style={[
                             styles.segmentButton,
-                            fontSize === option && styles.segmentButtonActive,
+                            chatFontSize === option && styles.segmentButtonActive,
                           ]}
-                          onPress={() => setFontSize(option)}
+                          onPress={() => handleSetFontSize(option)}
                         >
                           <Text
                             style={[
                               styles.segmentText,
-                              fontSize === option && styles.segmentTextActive,
+                              chatFontSize === option && styles.segmentTextActive,
                             ]}
                           >
                             {option}
@@ -524,20 +695,12 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
                     )}
                   </View>
                 </View>
-
-                <Pressable
-                  style={styles.settingsButton}
-                  onPress={handleClearChatHistory}
-                >
-                  <Text style={styles.settingsButtonText}>Clear Chat History</Text>
-                </Pressable>
-                {chatHistoryCleared && (
-                  <Text style={styles.inlineHint}>History cleared locally</Text>
-                )}
               </View>
 
-              <Text style={styles.settingsSectionHeader}>AHI Behavior</Text>
-              <View style={styles.settingsCard}>
+              <Text style={[styles.settingsSectionHeader, { color: headingText }]}>
+                AHI Behavior
+              </Text>
+              <View style={[styles.settingsCard, { backgroundColor: cardBackground }]}>
                 <View style={styles.settingsRow}>
                   <Text style={styles.settingsLabel}>Response Length</Text>
                   <View style={styles.segmentedRow}>
@@ -648,72 +811,56 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
                 </View>
               </View>
 
-              <Text style={styles.settingsSectionHeader}>Privacy & Data</Text>
-              <View style={styles.settingsCard}>
-                <Pressable style={styles.settingsButton}>
+              <Text style={[styles.settingsSectionHeader, { color: headingText }]}>
+                Privacy & Data
+              </Text>
+              <View style={[styles.settingsCard, { backgroundColor: cardBackground }]}>
+                <Pressable style={styles.settingsButton} onPress={handleOpenPrivacy}>
                   <Text style={styles.linkText}>Privacy Policy</Text>
                 </Pressable>
-                <Pressable style={styles.settingsButton}>
+                <Pressable style={styles.settingsButton} onPress={handleOpenTerms}>
                   <Text style={styles.linkText}>Terms of Service</Text>
                 </Pressable>
-                <Pressable style={styles.settingsButton}>
+                <Pressable style={styles.settingsButton} onPress={handleOpenAppPermissions}>
                   <Text style={styles.settingsButtonText}>App Permissions</Text>
                 </Pressable>
-                <Pressable
-                  style={[styles.settingsButton, styles.disabledButton]}
-                  disabled
-                >
-                  <Text style={styles.disabledText}>Export Chat (Coming Soon)</Text>
+                <Pressable style={styles.settingsButton} onPress={handleExportChat}>
+                  <Text style={styles.settingsButtonText}>Export Chat</Text>
                 </Pressable>
               </View>
 
-              <Text style={styles.settingsSectionHeader}>About</Text>
-              <View style={styles.settingsCard}>
+              <Text style={[styles.settingsSectionHeader, { color: headingText }]}>
+                About
+              </Text>
+              <View style={[styles.settingsCard, { backgroundColor: cardBackground }]}>
                 <View style={styles.versionRow}>
                   <Text style={styles.settingsLabel}>App Version</Text>
-                  <Text style={styles.versionValue}>v0.0.0</Text>
+                  <Text style={styles.versionValue}>
+                    v{Constants.expoConfig?.version ?? "0.0.0"}
+                  </Text>
                 </View>
-                <Pressable style={styles.settingsButton}>
-                  <Text style={styles.settingsButtonText}>Check for Updates</Text>
-                </Pressable>
-                <Pressable style={styles.settingsButton}>
+                <View style={styles.versionRow}>
+                  <Text style={styles.settingsLabel}>Build Number</Text>
+                  <Text style={styles.versionValue}>
+                    {String(
+                      Constants.expoConfig?.ios?.buildNumber ??
+                        Constants.expoConfig?.android?.versionCode ??
+                        "N/A"
+                    )}
+                  </Text>
+                </View>
+                <Text style={styles.inlineHint}>
+                  Built with {"\u2764\ufe0f"} for mindful conversations
+                </Text>
+                <Pressable style={styles.settingsButton} onPress={handleSendFeedback}>
                   <Text style={styles.settingsButtonText}>Send Feedback</Text>
                 </Pressable>
-                <Pressable style={styles.settingsButton}>
+                <Pressable style={styles.settingsButton} onPress={handleRateApp}>
                   <Text style={styles.settingsButtonText}>Rate App</Text>
                 </Pressable>
               </View>
             </ScrollView>
           </View>
-
-          {showDeleteAccountConfirm && (
-            <View style={styles.confirmLayer}>
-              <Pressable
-                style={styles.modalBackdrop}
-                onPress={() => setShowDeleteAccountConfirm(false)}
-              />
-              <View style={styles.confirmCard}>
-                <Text style={styles.confirmTitle}>Delete account?</Text>
-                <Text style={styles.confirmBody}>
-                  This is UI-only for now and will not delete your account.
-                </Text>
-                <View style={styles.confirmActions}>
-                  <Pressable
-                    style={styles.confirmButton}
-                    onPress={() => setShowDeleteAccountConfirm(false)}
-                  >
-                    <Text style={styles.settingsButtonText}>Cancel</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.confirmButton, styles.destructiveButton]}
-                    onPress={() => setShowDeleteAccountConfirm(false)}
-                  >
-                    <Text style={styles.destructiveText}>Delete</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          )}
         </View>
       )}
     </>
@@ -777,11 +924,24 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  headerRow: {
+  modalHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
     gap: 10,
+  },
+
+  headerLeftGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+
+  modalHeaderTitle: {
+    marginBottom: 0,
+    flexShrink: 1,
   },
 
   backButton: {
@@ -792,6 +952,21 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 18,
     color: "#dcdcdc",
+  },
+
+  closeButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#222",
+  },
+
+  closeText: {
+    color: "#e5e5e5",
+    fontSize: 18,
+    lineHeight: 18,
   },
 
   sectionHeader: {

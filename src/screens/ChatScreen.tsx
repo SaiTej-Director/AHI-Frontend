@@ -16,6 +16,8 @@ import HistoryPanel from "../components/history/HistoryPanel"
 import EditNameModal from "../components/modals/EditNameModal"
 import ConnectWithModal from "../components/modals/ConnectWithModal"
 import UnderstandingLevelsModal from "../components/modals/UnderstandingLevelsModal"
+import EditProfileModal from "../components/profile/EditProfileModal"
+import SideOverlay from "../components/common/SideOverlay"
 
 import {
   saveConversation,
@@ -24,6 +26,7 @@ import {
 } from "../storage/history"
 import { CHAT_API_URL, SESSION_OPEN_API_URL } from "../config/api"
 import { useAuth } from "../auth/AuthContext"
+import { useAppearance } from "../context/AppearanceContext"
 
 /* ------------------ helpers ------------------ */
 function genId() {
@@ -48,25 +51,28 @@ type ChatMessage = {
   __typing?: boolean
 }
 
+type OverlayType = "connect" | "history" | "understanding" | "profile" | null
+
 /* ------------------ component ------------------ */
 export default function ChatScreen() {
   const navigation = useNavigation<any>()
   const insets = useSafeAreaInsets()
   const { height: windowHeight } = useWindowDimensions()
-  const { accountName } = useAuth()
+  const { accountName, profilePhoto } = useAuth()
+  const { resolvedTheme } = useAppearance()
+  const appBackground = resolvedTheme === "light" ? "#F5F5F5" : "#121212"
+  const footerColor = resolvedTheme === "light" ? "#676767" : "#7A7A7A"
   const [headerName, setHeaderName] = useState("AHI")
   /* ---------- USER ---------- */
   const [editNameOpen, setEditNameOpen] = useState(false)
-  const [connectWithOpen, setConnectWithOpen] = useState(false)
-  const [understandingOpen, setUnderstandingOpen] = useState(false)
+  const [activeOverlay, setActiveOverlay] = useState<OverlayType>(null)
 
   /* ---------- PANELS ---------- */
   const [leftOpen, setLeftOpen] = useState(false)
-  const [rightOpen, setRightOpen] = useState(false)
   // Close drawers/panels but not modal popups.
   const closeAllOverlays = () => {
     setLeftOpen(false)
-    setRightOpen(false)
+    setActiveOverlay(null)
   }
 
   /* ---------- SESSION ---------- */
@@ -431,9 +437,9 @@ export default function ChatScreen() {
 
   /* ------------------ RENDER ------------------ */
   return (
-    <View style={{ flex: 1, backgroundColor: "#121212" }}>
+    <View style={{ flex: 1, backgroundColor: appBackground }}>
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: "#121212" }}
+        style={{ flex: 1, backgroundColor: appBackground }}
         edges={["top", "bottom"]}
         onStartShouldSetResponder={() => isDeleteMode}
         onResponderRelease={event => {
@@ -459,7 +465,7 @@ export default function ChatScreen() {
           }
           exitDeleteMode()
           closeAllOverlays()
-          setRightOpen(true)
+          setActiveOverlay("history")
         }}
         onTitlePress={() => {
           closeAllOverlays()
@@ -475,7 +481,7 @@ export default function ChatScreen() {
       <KeyboardAvoidingView
         style={{
           flex: 1,
-          backgroundColor: "#121212",
+          backgroundColor: appBackground,
         }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={0}
@@ -520,28 +526,44 @@ export default function ChatScreen() {
           navigation.navigate("Auth")
         }}
         onPressConnect={() => {
-          setConnectWithOpen(true)
+          setActiveOverlay("connect")
         }}
         onPressUnderstanding={() => {
-          setUnderstandingOpen(true)
+          setActiveOverlay("understanding")
+        }}
+        onPressProfile={() => {
+          setActiveOverlay("profile")
         }}
         accountName={accountName}
       />
 
       <HistoryPanel
-        visible={rightOpen}
-        onClose={() => setRightOpen(false)}
+        visible={activeOverlay === "history"}
+        onClose={() => setActiveOverlay(null)}
       />
 
       <ConnectWithModal
-        visible={connectWithOpen}
-        onClose={() => setConnectWithOpen(false)}
+        visible={activeOverlay === "connect"}
+        onClose={() => setActiveOverlay(null)}
       />
 
       <UnderstandingLevelsModal
-        visible={understandingOpen}
-        onClose={() => setUnderstandingOpen(false)}
+        visible={activeOverlay === "understanding"}
+        onClose={() => setActiveOverlay(null)}
       />
+
+      <SideOverlay
+        visible={activeOverlay === "profile"}
+        side="left"
+        onClose={() => setActiveOverlay(null)}
+      >
+        <EditProfileModal
+          visible={activeOverlay === "profile"}
+          currentName={accountName || "You"}
+          currentPhotoUrl={profilePhoto}
+          onClose={() => setActiveOverlay(null)}
+        />
+      </SideOverlay>
       </SafeAreaView>
 
       <Text
@@ -549,7 +571,7 @@ export default function ChatScreen() {
           position: "absolute",
           bottom: 8,
           alignSelf: "center",
-          color: "#7A7A7A",
+          color: footerColor,
           fontSize: 11,
           opacity: 0.25,
         }}
