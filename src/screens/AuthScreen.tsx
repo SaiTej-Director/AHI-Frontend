@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   Pressable,
@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native"
+import { useNavigation } from "@react-navigation/native"
 import * as WebBrowser from "expo-web-browser"
 import * as Google from "expo-auth-session/providers/google"
 import { useAuth } from "../auth/AuthContext"
@@ -16,7 +17,9 @@ import { GOOGLE_AUTH_CONFIG } from "../config/googleAuth"
 WebBrowser.maybeCompleteAuthSession()
 
 export default function AuthScreen() {
-  const { loginWithEmail, registerWithEmail, signInWithGoogleIdToken } = useAuth()
+  const navigation = useNavigation<any>()
+  const { user, loginWithEmail, registerWithEmail, signInWithGoogleIdToken } =
+    useAuth()
   const [mode, setMode] = useState<"login" | "register">("login")
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -29,6 +32,15 @@ export default function AuthScreen() {
     () => Boolean(GOOGLE_AUTH_CONFIG.webClientId),
     []
   )
+
+  useEffect(() => {
+    if (!user) return
+    if (navigation.canGoBack()) {
+      navigation.goBack()
+      return
+    }
+    navigation.navigate("Chat")
+  }, [user, navigation])
 
   async function handleSubmit() {
     if (busy) return

@@ -1,5 +1,13 @@
-import React from "react"
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native"
+import React, { useEffect, useRef } from "react"
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Animated,
+  Easing,
+} from "react-native"
 
 type Props = {
   visible: boolean
@@ -26,14 +34,46 @@ const STAGES = [
 ]
 
 export default function UnderstandingLevelsModal({ visible, onClose }: Props) {
+  const opacity = useRef(new Animated.Value(0)).current
+  const translateY = useRef(new Animated.Value(28)).current
+
+  useEffect(() => {
+    if (!visible) return
+    opacity.setValue(0)
+    translateY.setValue(28)
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [opacity, translateY, visible])
+
   if (!visible) return null
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={styles.card}>
+      <Animated.View style={[styles.backdropLayer, { opacity }]}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+      </Animated.View>
+      <Animated.View
+        style={[styles.card, { opacity, transform: [{ translateY }] }]}
+      >
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Understanding Levels</Text>
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.title}>Understanding Levels</Text>
+            <Text style={styles.subtitle}>
+              Your conversation depth grows naturally over time
+            </Text>
+          </View>
           <Pressable onPress={onClose} hitSlop={8} style={styles.closeButton}>
             <Text style={styles.closeText}>×</Text>
           </Pressable>
@@ -43,8 +83,15 @@ export default function UnderstandingLevelsModal({ visible, onClose }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >
-          {STAGES.map(stage => (
-            <View key={stage.title} style={styles.stageRow}>
+          {STAGES.map((stage, index) => (
+            <View
+              key={stage.title}
+              style={[
+                styles.stageCard,
+                index === 0 && styles.stageCardActive,
+                index === STAGES.length - 1 && styles.stageCardLast,
+              ]}
+            >
               <View style={styles.stageHeader}>
                 <LevelIcon title={stage.title} />
                 <Text style={styles.stageTitle}>{stage.title}</Text>
@@ -64,81 +111,127 @@ export default function UnderstandingLevelsModal({ visible, onClose }: Props) {
             </Text>
           </View>
         </ScrollView>
-      </View>
+      </Animated.View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
+  backdropLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.65)",
+    backgroundColor: "rgba(0,0,0,0.72)",
   },
   card: {
     position: "absolute",
-    left: "10%",
-    right: "10%",
-    top: "8%",
-    height: "72%",
-    backgroundColor: "#181818",
-    borderRadius: 18,
-    padding: 16,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: "82%",
+    backgroundColor: "#171717",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 14,
     borderWidth: 1,
-    borderColor: "#242424",
+    borderColor: "rgba(255,255,255,0.07)",
+    borderBottomWidth: 0,
     zIndex: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
   headerRow: {
-    flexDirection: "row",
+    marginBottom: 16,
+  },
+  headerTextWrap: {
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
+    justifyContent: "center",
   },
   title: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
+    letterSpacing: 0.3,
+  },
+  subtitle: {
+    marginTop: 6,
+    color: "rgba(234, 234, 234, 0.62)",
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: "center",
   },
   closeButton: {
+    position: "absolute",
+    right: 0,
+    top: 0,
     width: 28,
     height: 28,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#222",
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   closeText: { color: "#e5e5e5", fontSize: 18, lineHeight: 18 },
   content: {
-    paddingBottom: 16,
+    paddingBottom: 18,
   },
-  stageRow: {
+  stageCard: {
     marginBottom: 16,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  stageCardActive: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(177, 220, 255, 0.45)",
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  stageCardLast: {
+    marginBottom: 0,
   },
   stageHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   stageTitle: {
     color: "#EAEAEA",
     fontSize: 15,
     fontWeight: "600",
+    letterSpacing: 0.2,
   },
   stageDescription: {
     color: "#BEBEBE",
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 19,
   },
   noteBlock: {
-    marginTop: 8,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: "#262626",
-    gap: 6,
+    borderTopColor: "rgba(255,255,255,0.08)",
+    gap: 8,
   },
   noteText: {
     color: "#9A9A9A",
     fontSize: 12,
-    lineHeight: 16,
+    lineHeight: 17,
   },
   iconWrap: {
     width: 18,

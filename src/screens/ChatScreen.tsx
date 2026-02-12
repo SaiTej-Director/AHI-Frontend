@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { View, KeyboardAvoidingView, Platform, Text } from "react-native"
+import { useNavigation } from "@react-navigation/native"
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -13,7 +14,6 @@ import InputBar from "../components/chat/InputBar"
 import LeftDrawer from "../components/drawers/LeftDrawer"
 import HistoryPanel from "../components/history/HistoryPanel"
 import EditNameModal from "../components/modals/EditNameModal"
-import AuthModal from "../components/modals/AuthModal"
 import ConnectWithModal from "../components/modals/ConnectWithModal"
 import UnderstandingLevelsModal from "../components/modals/UnderstandingLevelsModal"
 
@@ -38,13 +38,12 @@ const SESSION_META_KEY = "ahi_session_meta_v1"
 
 /* ------------------ component ------------------ */
 export default function ChatScreen() {
+  const navigation = useNavigation<any>()
   const insets = useSafeAreaInsets()
   const { height: windowHeight } = useWindowDimensions()
-  const { isAuthenticated, headerName, accountName, setHeaderName } = useAuth()
+  const { headerName, accountName, setHeaderName } = useAuth()
   /* ---------- USER ---------- */
   const [editNameOpen, setEditNameOpen] = useState(false)
-  const [authOpen, setAuthOpen] = useState(false)
-  const [authContextMessage, setAuthContextMessage] = useState<string | null>(null)
   const [connectWithOpen, setConnectWithOpen] = useState(false)
   const [understandingOpen, setUnderstandingOpen] = useState(false)
 
@@ -493,10 +492,8 @@ export default function ChatScreen() {
         visible={leftOpen}
         onClose={() => setLeftOpen(false)}
         onPressAuth={() => {
-          setAuthContextMessage(null)
-          // Ensure drawers closed before opening auth modal
           closeAllOverlays()
-          setAuthOpen(true)
+          navigation.navigate("Auth")
         }}
         onPressConnect={() => {
           setConnectWithOpen(true)
@@ -504,22 +501,12 @@ export default function ChatScreen() {
         onPressUnderstanding={() => {
           setUnderstandingOpen(true)
         }}
-        isAuthenticated={isAuthenticated}
         accountName={accountName}
       />
 
       <HistoryPanel
         visible={rightOpen}
         onClose={() => setRightOpen(false)}
-      />
-
-      <AuthModal
-        visible={authOpen}
-        onClose={() => {
-          setAuthOpen(false)
-          setAuthContextMessage(null)
-        }}
-        contextMessage={authContextMessage}
       />
 
       <ConnectWithModal

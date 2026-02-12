@@ -29,6 +29,18 @@ type ThemeOption = "Light" | "Dark" | "System"
 type FontSizeOption = "Small" | "Default" | "Large"
 type ResponseLengthOption = "Short" | "Balanced" | "Detailed"
 type HumorLevelOption = "Low" | "Normal" | "Playful"
+type SessionRenderKeySource = Conversation & {
+  sessionId?: string
+  createdAt?: string | number
+}
+
+const panelButtonStyle = {
+  height: 64,
+  borderRadius: 16,
+  justifyContent: "center" as const,
+  alignItems: "center" as const,
+  marginBottom: 16,
+}
 
 export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
   const insets = useSafeAreaInsets()
@@ -167,11 +179,24 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
 
   function formatTime(timestamp: number) {
     const date = new Date(timestamp)
+    if (Number.isNaN(date.getTime())) {
+      return ""
+    }
     const hours = date.getHours()
     const minutes = date.getMinutes().toString().padStart(2, "0")
     const suffix = hours >= 12 ? "PM" : "AM"
     const hour12 = hours % 12 === 0 ? 12 : hours % 12
     return `${hour12}:${minutes} ${suffix}`
+  }
+
+  function getSafeSessionKey(session: Conversation, index: number) {
+    const sessionKeySource = session as SessionRenderKeySource
+    const safeKey =
+      sessionKeySource?.id ||
+      sessionKeySource?.sessionId ||
+      sessionKeySource?.createdAt ||
+      `history-${index}`
+    return String(safeKey)
   }
 
   function handleClearChatHistory() {
@@ -210,6 +235,10 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
               >
                 <Text style={styles.panelButtonText}>Settings</Text>
               </Pressable>
+
+              <View style={styles.panelPlaceholder} />
+              <View style={styles.panelPlaceholder} />
+              <View style={styles.panelPlaceholder} />
             </View>
           </View>
         </>
@@ -256,15 +285,18 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
                 contentContainerStyle={styles.viewerContent}
                 showsVerticalScrollIndicator={false}
               >
-                {selectedSession.messages.map(msg => (
-                  <View key={msg.id} style={styles.messageRow}>
-                    <Text style={styles.messageMeta}>
-                      {formatTime(msg.timestamp)} •{" "}
-                      {msg.sender === "user" ? "You" : "ahi"}
-                    </Text>
-                    <Text style={styles.messageText}>{msg.text}</Text>
-                  </View>
-                ))}
+                {selectedSession.messages.map((msg, index) => {
+                  const messageKey = msg?.id || `msg-${index}`
+                  return (
+                    <View key={`${messageKey}-${index}`} style={styles.messageRow}>
+                      <Text style={styles.messageMeta}>
+                        {formatTime(msg.timestamp)} •{" "}
+                        {msg.sender === "user" ? "You" : "ahi"}
+                      </Text>
+                      <Text style={styles.messageText}>{msg.text}</Text>
+                    </View>
+                  )
+                })}
               </ScrollView>
             ) : (
               <ScrollView
@@ -288,18 +320,21 @@ export default function HistoryPanel({ visible, onClose, onOpen }: Props) {
                         {todaySessions.length === 0 ? (
                           <Text style={styles.placeholder}>No sessions</Text>
                         ) : (
-                          todaySessions.map(session => (
-                            <Pressable
-                              key={session.id}
-                              style={styles.sessionRow}
-                              onPress={() => openSession(session)}
-                              onLongPress={() => confirmDelete(session.id)}
-                            >
-                              <Text style={styles.sessionTime}>
-                                {formatTime(session.lastUpdatedAt)}
-                              </Text>
-                            </Pressable>
-                          ))
+                          todaySessions.map((session, index) => {
+                            const safeKey = getSafeSessionKey(session, index)
+                            return (
+                              <Pressable
+                                key={`${safeKey}-${index}`}
+                                style={styles.sessionRow}
+                                onPress={() => openSession(session)}
+                                onLongPress={() => confirmDelete(session.id)}
+                              >
+                                <Text style={styles.sessionTime}>
+                                  {formatTime(session.lastUpdatedAt)}
+                                </Text>
+                              </Pressable>
+                            )
+                          })
                         )}
                       </View>
                     )}
@@ -716,14 +751,14 @@ const styles = StyleSheet.create({
   },
 
   panelContent: {
-    flex: 1,
-    justifyContent: "space-between",
+    alignItems: "center",
   },
 
   panelButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 18,
+    ...panelButtonStyle,
+    width: "100%",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     backgroundColor: "#1E1E1E",
   },
 
@@ -731,6 +766,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#EAEAEA",
     fontWeight: "600",
+  },
+
+  panelPlaceholder: {
+    ...panelButtonStyle,
+    width: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
   },
 
   title: {

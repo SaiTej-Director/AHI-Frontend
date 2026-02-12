@@ -27,12 +27,13 @@ export default function EditProfileModal({
   currentPhotoUrl,
   onClose,
 }: Props) {
-  const { refreshAuthUserProfile } = useAuth()
+  const { refreshAuthUserProfile, logout } = useAuth()
   const [newName, setNewName] = useState(currentName)
   const [newPhotoUrl, setNewPhotoUrl] = useState<string | null>(
     currentPhotoUrl || null
   )
   const [busy, setBusy] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
 
   const previewPhoto = useMemo(() => newPhotoUrl || null, [newPhotoUrl])
 
@@ -84,6 +85,17 @@ export default function EditProfileModal({
     }
   }
 
+  async function handleLogout() {
+    if (busy || logoutBusy) return
+    setLogoutBusy(true)
+    try {
+      await logout()
+      onClose()
+    } finally {
+      setLogoutBusy(false)
+    }
+  }
+
   return (
     <Modal
       visible={visible}
@@ -95,40 +107,63 @@ export default function EditProfileModal({
         <View style={styles.card}>
           <Text style={styles.title}>Edit profile</Text>
 
-          <View style={styles.photoRow}>
-            {previewPhoto ? (
-              <Image source={{ uri: previewPhoto }} style={styles.photoCircle} />
-            ) : (
-              <View style={styles.photoCirclePlaceholder} />
-            )}
-            <Pressable style={styles.ghostBtn} onPress={handleChangePhoto}>
-              <Text style={styles.ghostBtnText}>Change Photo</Text>
-            </Pressable>
-          </View>
-
           <TextInput
             value={newName}
             onChangeText={setNewName}
             autoFocus
             placeholder="Your name"
             placeholderTextColor="#777"
-            editable={!busy}
+            editable={!busy && !logoutBusy}
             style={styles.input}
           />
 
+          <View style={styles.photoRow}>
+            {previewPhoto ? (
+              <Image source={{ uri: previewPhoto }} style={styles.photoCircle} />
+            ) : (
+              <View style={styles.photoCirclePlaceholder} />
+            )}
+            <Pressable
+              disabled={busy || logoutBusy}
+              style={[styles.ghostBtn, (busy || logoutBusy) && styles.disabledBtn]}
+              onPress={handleChangePhoto}
+            >
+              <Text style={styles.ghostBtnText}>Change Photo</Text>
+            </Pressable>
+          </View>
+
           <View style={styles.actions}>
-            <Pressable disabled={busy} onPress={onClose} style={styles.cancelBtn}>
+            <Pressable
+              disabled={busy || logoutBusy}
+              onPress={onClose}
+              style={styles.cancelBtn}
+            >
               <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
             <Pressable
-              disabled={busy}
+              disabled={busy || logoutBusy}
               onPress={handleSave}
-              style={[styles.saveBtn, { opacity: busy ? 0.75 : 1 }]}
+              style={[styles.saveBtn, (busy || logoutBusy) && styles.disabledBtn]}
             >
               {busy ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <Text style={styles.saveText}>Save</Text>
+              )}
+            </Pressable>
+          </View>
+
+          <View style={styles.logoutSection}>
+            <View style={styles.divider} />
+            <Pressable
+              disabled={busy || logoutBusy}
+              onPress={handleLogout}
+              style={[styles.logoutBtn, (busy || logoutBusy) && styles.disabledBtn]}
+            >
+              {logoutBusy ? (
+                <ActivityIndicator color="#D48383" size="small" />
+              ) : (
+                <Text style={styles.logoutText}>Logout</Text>
               )}
             </Pressable>
           </View>
@@ -162,7 +197,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 14,
+    marginBottom: 18,
   },
   photoCircle: {
     width: 44,
@@ -205,6 +240,32 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 10,
+  },
+  logoutSection: {
+    marginTop: 22,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#2A2A2A",
+    marginBottom: 14,
+  },
+  logoutBtn: {
+    width: "100%",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#5A3636",
+    backgroundColor: "rgba(136, 72, 72, 0.08)",
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoutText: {
+    color: "#D48383",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  disabledBtn: {
+    opacity: 0.72,
   },
   cancelBtn: {
     paddingVertical: 10,

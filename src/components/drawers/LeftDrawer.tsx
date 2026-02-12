@@ -8,7 +8,6 @@ type Props = {
   onPressAuth?: () => void;
   onPressUnderstanding?: () => void;
   onPressConnect?: () => void;
-  isAuthenticated?: boolean;
   accountName?: string | null;
 };
 
@@ -18,7 +17,6 @@ export default function LeftDrawer({
   onPressAuth,
   onPressUnderstanding,
   onPressConnect,
-  isAuthenticated,
   accountName,
 }: Props) {
   if (!visible) return null;
@@ -44,7 +42,6 @@ export default function LeftDrawer({
             onClose()
             onPressConnect?.()
           }}
-          isAuthenticated={isAuthenticated}
           accountName={accountName}
         />
       </View>
